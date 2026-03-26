@@ -1,0 +1,4167 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Swegon Internal Tools</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+.logo-hover {
+  transition: transform 0.2s ease;
+}
+.logo-hover:hover {
+  transform: scale(1.05);
+}
+:root {
+  --primary: #0f2a44;
+  --primary-light: #1f4d7a;
+  --accent: #2f80ed;
+  --bg: #f4f7fb;
+  --card: #ffffff;
+  --border: #e6ecf2;
+  --text: #1e293b;
+  --muted: #64748b;
+}
+
+/* SCROLL */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ANIMATION */
+.fade-in { animation: fadeIn 0.3s ease-in-out; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* SIDEBAR ORIGINAL */
+.active-nav {
+  background-color: #f1f5f9;
+  color: #0f172a;
+  border-right: 2px solid #4f46e5;
+}
+
+.sidebar-link {
+  transition: all 0.2s;
+  border-right: 2px solid transparent;
+}
+
+.sidebar-link:hover:not(.active-nav) {
+  background-color: #f8fafc;
+  color: #334155;
+}
+
+/* MAP */
+#map { z-index: 0; background: #f8fafc; }
+
+/* INPUT */
+.input-field {
+  width: 100%;
+  background-color: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  outline: none;
+  transition: all 0.2s;
+  color: #334155;
+}
+
+.input-field:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 1px #6366f1;
+}
+
+/* MARKERS */
+.custom-div-icon { background: transparent; border: none; }
+
+.marker-pin {
+  width: 30px;
+  height: 30px;
+  border-radius: 50% 50% 50% 0;
+  background: #4f46e5;
+  position: absolute;
+  transform: rotate(-45deg);
+  left: 50%;
+  top: 50%;
+  margin: -15px 0 0 -15px;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.marker-pin::after {
+  content: '';
+  width: 14px;
+  height: 14px;
+  margin: 6px 0 0 7px;
+  background: #fff;
+  position: absolute;
+  border-radius: 50%;
+}
+
+.marker-pin.commercial { background: #f59e0b; }
+.marker-pin.technician { background: #4f46e5; }
+.marker-pin.client {
+  background: #ef4444;
+  border-radius: 50%;
+  transform: rotate(0);
+}
+
+.marker-pin.client::after { display: none; }
+
+/* LOADER */
+.loader {
+  border: 2px solid #f3f3f3;
+  border-radius: 50%;
+  border-top: 2px solid #fff;
+  width: 16px;
+  height: 16px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+</style>
+</head>
+<body class="bg-[var(--bg)] text-[var(--text)] antialiased h-screen flex overflow-hidden relative">
+    <!-- LOGIN MODAL -->
+    <div id="loginModal" class="absolute inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center fade-in">
+        <div class="bg-white rounded-xl shadow-2xl p-8 w-full max-w-sm border border-slate-200 relative overflow-hidden">
+            <!-- Decorative header line -->
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500"></div>
+            
+            <div class="flex flex-col items-center mb-8">
+                <div class="w-12 h-12 bg-slate-900 rounded-lg flex items-center justify-center text-white text-xl font-bold mb-4 shadow-lg shadow-indigo-500/20">S</div>
+                <h2 class="text-xl font-semibold text-slate-900 tracking-tight">Espace Swegon</h2>
+                <p class="text-xs text-slate-500 text-center mt-2 px-4 leading-relaxed">Connectez-vous pour accéder à vos outils. Les données sont stockées localement sur votre navigateur.</p>
+            </div>
+            
+            <form id="loginForm" onsubmit="event.preventDefault(); handleLogin();" class="space-y-5">
+                <div class="space-y-1">
+                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wide">Identifiant</label>
+                    <div class="relative">
+                        <input type="text" id="loginUser" class="input-field pl-9" placeholder="Votre nom d'utilisateur" required="" autocomplete="username">
+                        <iconify-icon icon="solar:user-circle-linear" class="absolute left-3 top-2.5 text-slate-400 text-lg"></iconify-icon>
+                    </div>
+                </div>
+                <div class="space-y-1">
+                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wide">Mot de passe</label>
+                    <div class="relative">
+                        <input type="password" id="loginPass" class="input-field pl-9" placeholder="••••••••" required="" autocomplete="current-password">
+                        <iconify-icon icon="solar:lock-password-linear" class="absolute left-3 top-2.5 text-slate-400 text-lg"></iconify-icon>
+                    </div>
+                </div>
+                
+                <div id="loginError" class="hidden p-2 rounded bg-red-50 border border-red-100 flex items-center gap-2">
+                    <iconify-icon icon="solar:danger-circle-linear" class="text-red-500"></iconify-icon>
+                    <span class="text-xs text-red-600 font-medium">Mot de passe incorrect.</span>
+                </div>
+
+                <button type="submit" id="btnLogin" class="w-full bg-slate-900 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-600 active:scale-[0.98] transition-all shadow-lg shadow-slate-900/10 flex items-center justify-center gap-2">
+                    <span id="btnLoginText">Connexion</span>
+                    <iconify-icon icon="solar:login-2-linear" class="text-lg" id="btnLoginIcon"></iconify-icon>
+                </button>
+            </form>
+            
+            <div class="mt-6 text-center border-t border-slate-100 pt-4">
+                <p class="text-[10px] text-slate-400">Si le compte n'existe pas, il sera créé automatiquement.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+<aside class="w-64 flex flex-col justify-between h-full glass text-white flex-shrink-0 z-20 shadow-xl overflow-y-auto">
+  <div>
+
+    <!-- LOGO -->
+    <div onclick="switchTab('mail-generator')" 
+         class="p-6 pb-6 flex items-center gap-3 cursor-pointer">
+
+      <img 
+        src="https://www.casastore.fi/img/media/logos/Swegon_Logotype_Pos-RGB-1200.png"
+        class="h-8 object-contain"
+        alt="Swegon Logo"
+      >
+
+      <div class="flex flex-col leading-tight">
+        <span class="text-white font-semibold text-sm">SWEGON</span>
+        <span class="text-[10px] text-slate-400">Internal Suite</span>
+      </div>
+
+    </div>
+
+    <p class="text-[10px] uppercase tracking-wider text-slate-400 mt-2 font-medium pl-6">
+      Outils Internes v1.3
+    </p>
+
+  </div>
+
+            <nav class="px-3 space-y-1">
+<button onclick="switchTab('dashboard')" id="nav-dashboard"
+  class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-500 rounded-lg">
+  <iconify-icon icon="solar:home-linear" width="20"></iconify-icon>
+  Dashboard
+</button>
+<button onclick="switchTab('prospects')" id="nav-prospects"
+  class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-500 rounded-lg">
+  <iconify-icon icon="solar:users-group-two-rounded-linear" width="20"></iconify-icon>
+  Gestion Prospects
+</button>
+<button onclick="switchTab('prospects-saved')" id="nav-prospects-saved"
+  class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-500 rounded-lg">
+  <iconify-icon icon="solar:database-linear" width="20"></iconify-icon>
+  Prospects traités
+</button>
+
+<button onclick="switchTab('flyers')" id="nav-flyers"
+  class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-500 rounded-lg">
+  <iconify-icon icon="solar:printer-linear" width="20"></iconify-icon>
+  Flyers Premium
+</button>
+
+<button onclick="switchTab('notes')" id="nav-notes"
+  class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-500 rounded-lg">
+  <iconify-icon icon="solar:notes-linear" width="20"></iconify-icon>
+  Prise de Notes
+</button>
+                <button onclick="switchTab('mail-generator')" id="nav-mail-generator" class="sidebar-link active-nav w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-500 rounded-lg group">
+                    <iconify-icon icon="solar:letter-linear" width="20" stroke-width="1.5" class="group-hover:text-indigo-600 transition-colors"></iconify-icon>
+                    Générateur Mails
+                </button>
+                <button onclick="switchTab('distance-map')" id="nav-distance-map" class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-500 rounded-lg group">
+                    <iconify-icon icon="solar:map-point-linear" width="20" stroke-width="1.5" class="group-hover:text-indigo-600 transition-colors"></iconify-icon>
+                    Carte &amp; Distances
+                </button>
+<button onclick="switchTab('documentation')" id="nav-documentation"
+  class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-500 rounded-lg">
+  <iconify-icon icon="solar:folder-linear" width="20"></iconify-icon>
+  Documentation
+</button>
+		<button onclick="switchTab('archives')" id="nav-archives"
+  class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-500 rounded-lg group">
+  <iconify-icon icon="solar:archive-linear" width="20"></iconify-icon>
+  Archives
+</button>
+
+<button onclick="switchTab('stats')" id="nav-stats"
+  class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-500 rounded-lg">
+  <iconify-icon icon="solar:chart-linear" width="20"></iconify-icon>
+  Statistiques
+</button>
+
+<button onclick="switchTab('emailing')" id="nav-emailing"
+  class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-500 rounded-lg group">
+  <iconify-icon icon="solar:mailbox-linear" width="20"
+    class="group-hover:text-indigo-600 transition-colors"></iconify-icon>
+  Emailing
+</button>
+<button onclick="switchTab('admin')" id="nav-admin"
+  class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-500 rounded-lg">
+  <iconify-icon icon="solar:user-plus-linear" width="20"></iconify-icon>
+  Gestion Comptes
+</button>
+<button onclick="switchTab('wise')"
+  id="nav-wise"
+  class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-500 rounded-lg">
+  <iconify-icon icon="solar:shield-check-linear" width="20"></iconify-icon>
+  WISE – Data Client
+</button>
+<button onclick="switchTab('roi-simulation')"
+  id="nav-roi-simulation"
+  class="sidebar-link w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-500 rounded-lg">
+  
+  <iconify-icon icon="solar:chart-line-duotone" width="20"></iconify-icon>
+  
+  ROI TEST
+</button>
+            </nav>
+        </div>
+
+        <div class="p-4 border-t border-slate-100">
+            <div class="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 border border-slate-200 cursor-pointer hover:bg-slate-100 hover:border-slate-300 transition group" onclick="logout()">
+                <div class="w-9 h-9 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center text-indigo-700 text-sm font-bold shadow-sm" id="userAvatar">U</div>
+                <div class="flex flex-col overflow-hidden">
+                    <span class="text-xs font-semibold text-slate-800 truncate group-hover:text-indigo-700 transition" id="userNameDisplay">Utilisateur</span>
+                    <span class="text-[10px] text-slate-400 flex items-center gap-1">
+                        <iconify-icon icon="solar:logout-2-linear"></iconify-icon> Déconnexion
+                    </span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-hidden bg-slate-50 relative flex flex-col">
+<section id="view-dashboard" class="hidden flex-1 p-6 bg-slate-50 space-y-6 overflow-auto">
+
+<h1 class="text-lg font-semibold">Dashboard</h1>
+
+<!-- KPI -->
+<div class="grid grid-cols-6 gap-4">
+
+  <div class="bg-white p-4 rounded border">
+    <p class="text-xs text-slate-400">Prospects</p>
+    <p id="dashProspects" class="text-xl font-bold">0</p>
+  </div>
+
+  <div class="bg-white p-4 rounded border">
+    <p class="text-xs text-slate-400">Mails</p>
+    <p id="dashMails" class="text-xl font-bold">0</p>
+  </div>
+
+  <div class="bg-white p-4 rounded border">
+    <p class="text-xs text-slate-400">Docs</p>
+    <p id="dashDocs" class="text-xl font-bold">0</p>
+  </div>
+
+  <div class="bg-white p-4 rounded border">
+    <p class="text-xs text-slate-400">CA</p>
+    <p id="dashRevenue" class="text-xl font-bold">0 €</p>
+  </div>
+
+  <div class="bg-white p-4 rounded border">
+    <p class="text-xs text-slate-400">Emailing</p>
+    <p class="text-xl font-bold" id="dashEmailing">0</p>
+  </div>
+
+  <div class="bg-white p-4 rounded border">
+    <p class="text-xs text-slate-400">WISE</p>
+    <p class="text-xl font-bold" id="dashWise">0</p>
+  </div>
+
+</div>
+
+<!-- GRID PRINCIPAL -->
+<div class="grid grid-cols-2 gap-6">
+
+  <!-- Graph compact -->
+  <div class="bg-white p-4 rounded border h-[250px]">
+    <canvas id="dashboardChart"></canvas>
+  </div>
+<div class="bg-white p-4 rounded border h-[250px]">
+  <canvas id="dashboardROIChart"></canvas>
+</div>
+<div class="bg-white p-4 rounded border">
+  <h2 class="text-xs font-semibold mb-3">Carte équipe</h2>
+  <div id="dashboardMap" class="w-full h-[250px] rounded"></div>
+</div>
+  <!-- ROI résumé -->
+ <div class="bg-white p-4 rounded border">
+  <h2 class="text-xs font-semibold mb-3">ROI Global</h2>
+
+  <div id="dashROI" class="space-y-2">
+
+    <!-- ROI MOYEN -->
+    <div>
+      <p class="text-[10px] text-slate-400">ROI moyen</p>
+      <p id="dashROIMoyen" class="text-lg font-bold text-indigo-600">—</p>
+    </div>
+
+    <!-- GOLD 080 -->
+    <div class="border-t pt-2">
+      <p class="text-[10px] text-slate-400">GOLD 080</p>
+      <p id="dashROIGold" class="text-sm font-semibold text-slate-700">—</p>
+    </div>
+
+  </div>
+</div>
+
+</div>
+
+<!-- ACTIVITÉ -->
+<div class="grid grid-cols-2 gap-6">
+
+  <div class="bg-white p-4 rounded border">
+    <h2 class="text-xs font-semibold mb-3">Derniers mails</h2>
+    <div id="dashMailsList" class="text-xs space-y-2"></div>
+  </div>
+
+  <div class="bg-white p-4 rounded border">
+    <h2 class="text-xs font-semibold mb-3">Documents récents</h2>
+    <div id="dashDocsList" class="text-xs space-y-2"></div>
+  </div>
+
+</div>
+
+</section>
+        
+        <!-- MODULE 1: GÉNÉRATEUR DE MAILS -->
+        <section id="view-mail-generator" class="flex-1 h-full flex flex-col fade-in overflow-hidden">
+            <div class="h-16 border-b border-slate-200 bg-white px-6 flex items-center justify-between shrink-0 shadow-sm z-10">
+                <h1 class="text-sm font-semibold text-slate-900 flex items-center gap-2 tracking-tight">
+                    <div class="p-1.5 bg-indigo-50 rounded text-indigo-600"><iconify-icon icon="solar:document-add-linear"></iconify-icon></div>
+                    Éditeur de Modèles
+                </h1>
+                
+                <div class="flex items-center gap-2">
+                     <select id="templateSelector" onchange="loadTemplate(this.value)" class="bg-slate-50 border border-slate-200 text-xs rounded-md px-3 py-2 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-slate-700 cursor-pointer hover:bg-slate-100 transition min-w-[150px]">
+                        <option value="new">+ Nouveau Modèle</option>
+                        <!-- Options populated via JS -->
+                    </select>
+                    <button onclick="deleteCurrentTemplate()" class="text-slate-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-md transition" title="Supprimer le modèle">
+                        <iconify-icon icon="solar:trash-bin-trash-linear" width="18"></iconify-icon>
+                    </button>
+                    <div class="w-px h-6 bg-slate-200 mx-1"></div>
+                    <button onclick="saveCurrentTemplate()" class="text-xs font-semibold bg-slate-900 text-white px-4 py-2 rounded-md hover:bg-indigo-600 hover:shadow-lg hover:shadow-indigo-500/20 transition flex items-center gap-2 active:scale-95">
+                        <iconify-icon icon="solar:diskette-linear"></iconify-icon> Sauvegarder
+                    </button>
+<button onclick="archiveMail()"
+  class="text-xs font-semibold bg-indigo-100 text-indigo-700 px-4 py-2 rounded-md hover:bg-indigo-200 transition">
+  Archiver
+</button>
+                </div>
+            </div>
+
+            <div class="flex flex-1 overflow-hidden">
+                <!-- Variables Column -->
+                <div class="w-72 bg-white border-r border-slate-200 flex flex-col overflow-y-auto shrink-0 z-10">
+                    <div class="p-4 bg-slate-50/50 border-b border-slate-100 sticky top-0 backdrop-blur-sm z-10">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                            <iconify-icon icon="solar:pen-new-square-linear"></iconify-icon> Données Variables
+                        </span>
+                    </div>
+                    <div class="p-5 space-y-6">
+<div class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-[11px] space-y-1">
+  <p class="font-bold text-slate-600 uppercase text-[10px] mb-1">
+    Variables cliquables
+  </p>
+
+  <span onclick="insertVar('{client}')" class="cursor-pointer font-mono text-indigo-600 hover:underline">{client}</span> – Nom du client<br>
+  <span onclick="insertVar('{societe}')" class="cursor-pointer font-mono text-indigo-600 hover:underline">{societe}</span> – Société<br>
+  <span onclick="insertVar('{adresse}')" class="cursor-pointer font-mono text-indigo-600 hover:underline">{adresse}</span> – Adresse<br>
+  <span onclick="insertVar('{ref}')" class="cursor-pointer font-mono text-indigo-600 hover:underline">{ref}</span> – Référence devis<br>
+  <span onclick="insertVar('{contrat}')" class="cursor-pointer font-mono text-indigo-600 hover:underline">{contrat}</span> – Contrat<br>
+  <span onclick="insertVar('{date}')" class="cursor-pointer font-mono text-indigo-600 hover:underline">{date}</span> – Date<br>
+  <span onclick="insertVar('{tech}')" class="cursor-pointer font-mono text-indigo-600 hover:underline">{tech}</span> – Technicien
+</div>
+                        <div class="space-y-3">
+                            <label class="text-[11px] font-semibold text-slate-500 uppercase tracking-wide flex justify-between">
+                                Client
+                                <span class="text-indigo-500 cursor-pointer hover:underline text-[10px]" onclick="insertVar('{client}')">+ Insérer</span>
+                            </label>
+                            <input type="text" id="var_client" placeholder="ex: M. Dupont" class="input-field" oninput="updatePreview()">
+                            <input type="text" id="var_societe" placeholder="ex: Google France" class="input-field" oninput="updatePreview()">
+                            <textarea id="var_adresse" placeholder="Adresse complète" class="input-field min-h-[60px] resize-none" oninput="updatePreview()"></textarea>
+                        </div>
+                        <div class="h-px bg-slate-100 w-full"></div>
+                        <div class="space-y-3">
+                            <label class="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Intervention</label>
+                            <input type="text" id="var_ref_devis" placeholder="Réf. Devis" class="input-field" oninput="updatePreview()">
+                            <input type="text" id="var_contrat" placeholder="N° Contrat" class="input-field" oninput="updatePreview()">
+                            <input type="date" id="var_date" class="input-field text-slate-500" oninput="updatePreview()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Editor & Preview -->
+                <div class="flex-1 flex flex-col bg-slate-50/50">
+                    <div class="flex-1 flex gap-6 p-6 overflow-hidden">
+                        <!-- Source -->
+                        <div class="flex-1 flex flex-col gap-2 relative bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                             <div class="flex justify-between items-center p-3 border-b border-slate-100 bg-slate-50">
+                                <label class="text-xs font-semibold text-slate-700">Source du Modèle</label>
+                                <input type="text" id="templateNameInput" placeholder="Nom du modèle..." class="bg-transparent border-b border-dashed border-slate-300 hover:border-indigo-500 focus:border-indigo-500 outline-none text-xs text-right w-48 transition-colors text-slate-600 font-medium pb-0.5">
+                            </div>
+                            <textarea id="templateSource" oninput="updatePreview()" class="w-full h-full p-4 text-sm text-slate-600 resize-none outline-none font-mono leading-relaxed bg-transparent" spellcheck="false" placeholder="Écrivez votre mail ici. Utilisez {client}, {societe} pour les variables..."></textarea>
+                            
+                            <!-- Attachment Section -->
+                            <div class="border-t border-slate-100 p-2 flex items-center justify-between bg-slate-50">
+                                <div class="flex items-center gap-2">
+                                    <button onclick="document.getElementById('fileInput').click()" class="text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded p-1.5 transition flex items-center gap-1 text-xs font-medium">
+                                        <iconify-icon icon="solar:paperclip-linear" width="16"></iconify-icon> Joindre fichier (simulé)
+                                    </button>
+                                    <div id="attachmentDisplay" class="text-xs text-slate-400 italic">Aucune pièce jointe</div>
+                                    <input type="file" id="fileInput" class="hidden" onchange="handleFileSelect(this)">
+                                </div>
+                                <button onclick="clearAttachment()" id="clearAttBtn" class="hidden text-xs text-red-500 hover:bg-red-50 px-2 py-1 rounded">Retirer</button>
+                            </div>
+                        </div>
+
+                        <!-- Result -->
+                        <div class="flex-1 flex flex-col gap-2 relative bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                            <div class="flex justify-between items-center p-3 border-b border-slate-100 bg-slate-50">
+                                <label class="text-xs font-semibold text-slate-700 flex items-center gap-2">
+                                    <iconify-icon icon="solar:eye-linear" class="text-indigo-500"></iconify-icon> Aperçu Final
+                                </label>
+                                <button onclick="copyToClipboard()" class="text-[10px] font-semibold text-indigo-700 hover:text-indigo-800 flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded transition">
+                                    <iconify-icon icon="solar:copy-linear"></iconify-icon> Copier
+                                </button>
+                            </div>
+                            <div class="w-full h-full p-6 text-sm text-slate-800 overflow-auto whitespace-pre-wrap leading-relaxed select-text" id="previewOutput">
+                                <!-- Preview rendered here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- MODULE 2: CARTE & DISTANCES -->
+        <section id="view-distance-map" class="h-full flex hidden fade-in relative">
+            
+            <!-- Sidebar Carte -->
+            <div class="w-80 bg-white border-r border-slate-200 flex flex-col shrink-0 z-10 shadow-xl z-[400]">
+                <div class="p-5 border-b border-slate-100 bg-slate-50/50">
+                    <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1">
+                        <span class="w-4 h-4 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px]">1</span> 
+                        Destination (Client)
+                    </h2>
+                    
+                    <!-- Search Bar -->
+                    <div class="flex gap-2 mb-3">
+                        <div class="relative flex-1 group">
+                            <input type="text" id="addressSearch" placeholder="Ville, adresse..." class="w-full bg-white border border-slate-200 text-slate-800 text-xs rounded-lg outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 pl-3 pr-8 py-2.5 transition shadow-sm" onkeydown="if(event.key === 'Enter') searchLocation()">
+                            <button onclick="document.getElementById('addressSearch').value = ''" class="absolute right-2 top-2.5 text-slate-300 hover:text-slate-500 hidden group-hover:block">
+                                <iconify-icon icon="solar:close-circle-linear"></iconify-icon>
+                            </button>
+                        </div>
+                        <button onclick="searchLocation()" id="btnSearch" class="bg-slate-900 text-white rounded-lg px-3.5 hover:bg-indigo-600 transition flex items-center justify-center shadow-lg shadow-slate-900/10">
+                            <iconify-icon icon="solar:magnifer-linear"></iconify-icon>
+                        </button>
+                    </div>
+
+                    <div class="text-[10px] text-slate-500 flex gap-1.5 items-center px-1 bg-blue-50/50 p-2 rounded border border-blue-100/50">
+                        <iconify-icon icon="solar:info-circle-linear" class="text-blue-500"></iconify-icon>
+                        Vous pouvez déplacer le marqueur rouge sur la carte.
+                    </div>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-0 scroll-smooth">
+                    <div class="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center sticky top-0 backdrop-blur-sm z-10">
+                        <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                            <span class="w-4 h-4 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px]">2</span>
+                            Équipe
+                        </h2>
+                        <button onclick="toggleAddCollabMode()" id="btnAddCollab" class="text-[10px] bg-white border border-slate-200 px-2.5 py-1.5 rounded-md text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition font-semibold shadow-sm flex items-center gap-1">
+                            <iconify-icon icon="solar:add-circle-linear"></iconify-icon> Ajouter
+                        </button>
+                    </div>
+
+                    <!-- Add Collab Form -->
+                    <div id="addCollabForm" class="hidden p-4 bg-indigo-50 border-b border-indigo-100 space-y-3 animate-in slide-in-from-top-2">
+                        <div class="flex justify-between items-center">
+                            <p class="text-[10px] text-indigo-700 font-bold uppercase">Nouveau Collaborateur</p>
+                            <button onclick="cancelAddCollab()" class="text-slate-400 hover:text-slate-600"><iconify-icon icon="solar:close-circle-linear"></iconify-icon></button>
+                        </div>
+                        <input type="text" id="newCollabName" placeholder="Nom complet" class="input-field text-xs py-2 border-indigo-200 focus:border-indigo-500">
+                        <select id="newCollabRole" class="input-field text-xs py-2 border-indigo-200">
+                            <option value="Technicien">Technicien</option>
+                            <option value="Commercial">Commercial</option>
+                        </select>
+                         <div class="text-[10px] text-indigo-600 italic flex items-center gap-1.5 bg-white/50 p-2 rounded">
+                            <iconify-icon icon="solar:map-point-linear"></iconify-icon> 
+                            Cliquez sur la carte pour placer la personne.
+                        </div>
+                    </div>
+
+                    <!-- List -->
+                    <div id="collabList" class="divide-y divide-slate-100">
+                        <!-- Items injected by JS -->
+                    </div>
+                </div>
+
+                <!-- Resultat Trajet -->
+                <div class="p-5 border-t border-slate-200 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-20">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="relative flex h-2.5 w-2.5">
+                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                        </span>
+                        <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Meilleure Option</h3>
+                    </div>
+                    <div id="bestRouteInfo" class="opacity-60 transition-opacity duration-300">
+                        <div class="bg-slate-50 border border-slate-100 rounded-lg p-4 text-center">
+                            <p class="text-xs text-slate-400 italic">Recherchez un client ou cliquez sur la carte pour calculer le trajet.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Map Container -->
+            <div class="flex-1 relative bg-slate-100">
+                <div id="map" class="w-full h-full outline-none"></div>
+                
+                <!-- Map Controls Overlay -->
+                <div class="absolute top-4 right-4 z-[400] flex flex-col gap-2">
+                    <button onclick="resetMap()" class="bg-white p-2.5 rounded-lg shadow-lg border border-slate-100 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition active:scale-95" title="Réinitialiser la vue">
+                        <iconify-icon icon="solar:restart-linear" width="22"></iconify-icon>
+                    </button>
+                    <button onclick="locateUser()" class="bg-white p-2.5 rounded-lg shadow-lg border border-slate-100 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition active:scale-95" title="Ma position">
+                        <iconify-icon icon="solar:gps-linear" width="22"></iconify-icon>
+                    </button>
+                </div>
+            </div>
+        </section>
+<!-- MODULE : DOCUMENTATION -->
+<section id="view-documentation" class="hidden h-full flex flex-col fade-in">
+
+  <div class="h-16 border-b border-slate-200 bg-white px-6 flex items-center">
+    <h1 class="text-sm font-semibold text-slate-900 flex items-center gap-2">
+      <iconify-icon icon="solar:folder-linear" class="text-indigo-600"></iconify-icon>
+      Documentation
+    </h1>
+  </div>
+
+  <div class="flex-1 p-6 bg-slate-50 space-y-4 overflow-auto">
+
+    <div class="glass p-4">
+      <label class="text-xs font-semibold uppercase text-slate-600">
+        Ajouter un document
+      </label>
+      <input type="file"
+        class="block mt-2 text-xs"
+        onchange="addDocumentation(this)">
+    </div>
+
+    <div class="glass p-4">
+      <h2 class="text-xs font-semibold uppercase text-slate-600 mb-3">
+        Documents enregistrés
+      </h2>
+      <div id="docList"></div>
+    </div>
+
+  </div>
+
+</section>
+
+<!-- MODULE : ARCHIVES -->
+<section id="view-archives" class="hidden h-full flex fade-in">
+  <div class="w-80 border-r bg-white overflow-y-auto">
+    <div class="p-4 border-b">
+      <h2 class="text-xs font-bold uppercase text-slate-500">Archives mails</h2>
+    </div>
+    <div id="archiveList"></div>
+  </div>
+
+  <div class="flex-1 p-6 bg-slate-50 overflow-auto">
+    <div id="archiveDetail" class="text-sm italic text-slate-400">
+      Sélectionne un mail
+    </div>
+  </div>
+</section>
+<!-- MODULE : PRISE DE NOTES -->
+<section id="view-notes" class="hidden h-full flex flex-col fade-in">
+
+  <div class="h-16 border-b border-slate-200 bg-white px-6 flex items-center">
+    <h1 class="text-sm font-semibold text-slate-900 flex items-center gap-2">
+      <iconify-icon icon="solar:pen-new-square-linear" class="text-indigo-600"></iconify-icon>
+      Prise de Notes
+    </h1>
+  </div>
+
+  <div class="flex-1 p-6 bg-slate-50 space-y-6 overflow-auto">
+
+    <div class="glass p-4 space-y-3">
+      <h2 class="text-xs font-semibold uppercase text-slate-600">
+        Nouvelle note
+      </h2>
+
+      <input type="text" placeholder="Titre de la note" class="input-field">
+      <textarea placeholder="Contenu de la note" class="input-field min-h-[120px]"></textarea>
+
+      <button class="btn text-sm">
+        Enregistrer la note
+      </button>
+    </div>
+
+    <div class="glass p-4">
+      <h2 class="text-xs font-semibold uppercase text-slate-600 mb-3">
+        Notes enregistrées
+      </h2>
+      <div class="text-xs text-slate-400 italic">
+        Aucune note pour le moment
+      </div>
+    </div>
+
+  </div>
+</section>
+<section id="view-stats" class="hidden h-full flex flex-col fade-in">
+
+  <div class="h-16 border-b border-slate-200 bg-white px-6 flex items-center">
+    <h1 class="text-sm font-semibold text-slate-900 flex items-center gap-2">
+      <iconify-icon icon="solar:chart-linear" class="text-indigo-600"></iconify-icon>
+      Statistiques – Évolution
+    </h1>
+  </div>
+
+  <div class="flex-1 p-6 bg-slate-50 space-y-6 overflow-auto">
+
+    <!-- GRAPHIQUE -->
+    <div class="glass p-4">
+      <canvas id="statsChart" height="120" style="width:100%"></canvas>
+    </div>
+
+    <!-- TABLEAU -->
+    <div class="glass p-4 max-h-64 overflow-auto">
+      <h2 class="text-xs font-semibold uppercase text-slate-600 mb-3">
+        Historique
+      </h2>
+
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-slate-400 text-xs border-b">
+            <th class="text-left py-2">Date</th>
+            <th class="text-right py-2">Montant (€)</th>
+            <th class="text-right py-2"></th>
+          </tr>
+        </thead>
+        <tbody id="statsTable"></tbody>
+      </table>
+    </div>
+
+    <!-- AJOUT -->
+    <div class="glass p-4 flex gap-4 items-end">
+      <div class="flex-1">
+        <label class="text-xs font-semibold uppercase text-slate-600">
+          Montant (€)
+        </label>
+<input id="statDate" type="date"
+  class="input-field mt-1">
+
+<input id="statAmount" type="number" step="0.01"
+  class="input-field mt-1"
+  placeholder="163278.23">
+      </div>
+
+      <button onclick="addStatPoint()"
+        class="btn-md text-sm font-semibold hover:bg-indigo-700 transition">
+        Ajouter
+      </button>
+    </div>
+
+  </div>
+</section>
+<section id="view-emailing" class="hidden h-full flex flex-col fade-in">
+
+  <div class="h-16 border-b bg-white px-6 flex items-center">
+    <h1 class="text-sm font-semibold text-slate-900">
+      Emailing
+    </h1>
+<button onclick="toggleLock('emailing')"
+  id="lock-emailing"
+  class="lock-btn ml-4">
+  🔓
+</button>
+  </div>
+
+  <div class="flex-1 p-6 bg-slate-50 space-y-4 overflow-auto">
+
+    <div class="bg-white border rounded p-4">
+      <input type="file"
+        accept=".xls,.xlsx"
+        class="text-xs"
+        onchange="handleEmailingExcel(this)">
+    </div>
+<div class="bg-white border rounded p-4 space-y-3">
+
+<select id="filterSegmentEmailing"
+  class="input-field text-xs"
+  onchange="populateVersionFilter()">
+    <option value="">Tous segments</option>
+    <option value="GOLD">GOLD</option>
+    <option value="SILVER">SILVER</option>
+  </select>
+
+  <input id="filterGammeEmailing"
+    class="input-field text-xs"
+    placeholder="Gamme (ex: RX)">
+
+  <select id="filterVersionEmailing"
+  multiple
+  class="input-field text-xs h-28">
+</select>
+
+
+<button onclick="applyAllEmailingFilters()"
+    class="btn text-xs">
+    Appliquer filtre
+  </button>
+
+</div>
+
+<div class="bg-white border rounded p-4">
+  <button onclick="removeDuplicatesNow()"
+    class="btn text-xs">
+    Supprimer les doublons
+  </button>
+</div>
+
+    <div class="bg-white border rounded p-4 space-y-2">
+<input id="excludeWords"
+       class="input-field text-xs"
+       placeholder="Exclure : atib, noreply, test"
+       oninput="applyEmailingFilters()">
+
+
+      <div class="text-xs">
+        Total emails : <b id="statTotalEmails">0</b><br>
+        Après filtre : <b id="statFilteredEmails">0</b>
+      </div>
+
+      <div id="emailingList"
+        class="border rounded p-3 max-h-64 overflow-auto text-xs bg-slate-50">
+        Aucun email
+      </div>
+    </div>
+
+  </div>
+</section>
+<section id="view-roi-simulation" class="hidden h-full flex flex-col fade-in">
+<div class="bg-white border rounded p-4">
+  <h2 class="text-xs font-semibold mb-2">
+    Base de données Excel intégrée
+  </h2>
+
+  <input type="file"
+    accept=".xlsx,.xls"
+    onchange="loadROIExcel(this)"
+    class="text-xs mb-3">
+
+  <div id="roiTableContainer"
+    class="max-h-80 overflow-auto text-xs border"></div>
+</div>
+  <div class="h-16 border-b border-slate-200 bg-white px-6 flex items-center">
+    <h1 class="text-sm font-semibold text-slate-900 flex items-center gap-2">
+      <iconify-icon icon="solar:graph-up-bold" class="text-indigo-600"></iconify-icon>
+      Simulation ROI Client
+    </h1>
+<button onclick="toggleLock('roi')"
+  id="lock-roi"
+  class="ml-4 text-lg text-slate-300">
+  🔓
+</button>
+  </div>
+
+  <div class="flex-1 p-6 bg-slate-50 space-y-6 overflow-auto">
+
+
+<!-- 🔥 AJOUT ICI -->
+<select id="roiMode" class="input-field mb-2">
+  <option value="auto">Mode Excel automatique</option>
+  <option value="manual">Mode manuel client</option>
+</select>
+
+<select id="roiTaille" class="input-field" onchange="autoFillROI()">
+  <option value="">Choisir taille</option>
+</select>
+
+<input id="roiDebit" class="input-field" disabled placeholder="Débit (m3/h)">
+<input id="roiPuissance" class="input-field" disabled placeholder="Puissance (kW)">
+
+    <select id="roiBatiment" class="input-field">
+      <option value="ecole">École</option>
+      <option value="salle">Salle des fêtes</option>
+      <option value="bureaux">Bureau</option>
+    </select>
+<input id="roiConsoAvant" class="input-field" placeholder="Conso actuelle (kWh/an)">
+<input id="roiGain" class="input-field" placeholder="Gain énergétique (%)">
+<input id="roiPrixKwh" class="input-field" placeholder="Prix énergie €/kWh">
+<input id="roiInvest" class="input-field" placeholder="Investissement (€)">
+<input id="roiInflation" class="input-field" placeholder="Inflation (%)">
+<label class="flex items-center gap-2 text-xs mt-2">
+  <input type="checkbox" id="roiCO2">
+  Activer sonde CO2
+</label>
+    <button onclick="generateROISimulation()" 
+            class="btn">
+      Générer simulation
+    </button>
+<button onclick="exportROIPDF()"
+  class="bg-slate-900 text-white px-4 py-2 rounded mt-3">
+  Exporter PDF ROI
+</button>
+<canvas id="roiChart" height="120" class="mt-6"></canvas>
+    <div id="roiResults" class="mt-6 bg-white p-6 rounded shadow-sm"></div>
+
+  </div>
+
+</section>
+<!-- MODULE : FLYERS PREMIUM -->
+<section id="view-flyers" class="hidden h-full flex flex-col fade-in">
+
+<div class="flex-1 p-6 bg-slate-50 overflow-auto">
+
+  <div class="grid grid-cols-2 gap-6">
+
+    <!-- CONTROLES -->
+    <div class="bg-white border rounded-lg p-5 space-y-4">
+
+      <h2 class="text-xs font-semibold uppercase text-slate-600">
+        Configuration du Flyer
+      </h2>
+
+      <input id="flyerTitle"
+        class="input-field"
+        placeholder="Titre principal">
+
+      <textarea id="flyerText"
+        class="input-field min-h-[100px]"
+        placeholder="Description du produit"></textarea>
+
+      <input id="flyerPrice"
+        class="input-field"
+        placeholder="Prix / Offre">
+
+      <select id="flyerBadge" class="input-field">
+        <option value="">Aucun badge</option>
+        <option value="NOUVEAU">NOUVEAU</option>
+        <option value="PROMO">PROMO</option>
+        <option value="PREMIUM">PREMIUM</option>
+      </select>
+
+      <label class="text-xs text-slate-500">Couleur principale</label>
+      <input type="color" id="flyerColor" value="#4f46e5" class="w-full h-10 rounded">
+
+      <label class="text-xs text-slate-500">Logo</label>
+      <input type="file" accept="image/*" onchange="loadFlyerLogo(this)">
+
+      <label class="text-xs text-slate-500">Image principale</label>
+      <input type="file" accept="image/*" onchange="loadFlyerImage(this)">
+<label class="text-xs text-slate-500">Image secondaire (coin)</label>
+<input type="file" accept="image/*" onchange="loadCornerImage(this)">
+
+<hr class="my-4">
+
+<label class="text-xs text-slate-500">Couleur texte</label>
+<input type="color" id="textColor" value="#ffffff" class="w-full h-10 rounded">
+
+<label class="text-xs text-slate-500">Couleur fond bloc texte</label>
+<input type="color" id="textBoxColor" value="#000000" class="w-full h-10 rounded">
+
+<label class="text-xs text-slate-500">Opacité fond bloc (%)</label>
+<input type="range" id="textBoxOpacity" min="0" max="100" value="60" class="w-full">
+
+<label class="text-xs text-slate-500">Taille titre</label>
+<input type="range" id="titleSize" min="20" max="80" value="50" class="w-full">
+
+<label class="text-xs text-slate-500">Taille texte</label>
+<input type="range" id="bodySize" min="12" max="40" value="18" class="w-full">
+
+<label class="text-xs text-slate-500">Police</label>
+<hr class="my-4">
+
+<label class="text-xs text-slate-500">
+Luminosité image (%)
+<span id="brightnessValue">100%</span>
+</label>
+<input type="range" id="bgBrightness"
+  min="50" max="150" value="100"
+  class="w-full"
+  oninput="updateSliderDisplay('brightnessValue', this.value)">
+
+<label class="text-xs text-slate-500">
+Transparence image (%)
+<span id="bgOpacityValue">100%</span>
+</label>
+<input type="range" id="bgOpacity"
+  min="0" max="100" value="100"
+  class="w-full"
+  oninput="updateSliderDisplay('bgOpacityValue', this.value)">
+
+<label class="text-xs text-slate-500">
+Assombrissement overlay (%)
+<span id="overlayValue">0%</span>
+</label>
+<input type="range" id="bgOverlay"
+  min="0" max="80" value="0"
+  class="w-full"
+  oninput="updateSliderDisplay('overlayValue', this.value)">
+
+<select id="fontFamily" class="input-field">
+  <option value="Inter">Inter</option>
+  <option value="Arial">Arial</option>
+  <option value="Montserrat">Montserrat</option>
+  <option value="Oswald">Oswald</option>
+</select>
+
+      <button onclick="updateFlyer()"
+        class="btn text-sm w-full">
+        Générer le flyer
+      </button>
+<button onclick="addTextBlock()"
+  class="bg-indigo-600 text-white px-3 py-2 rounded text-xs w-full mt-2">
+  ➕ Ajouter bloc texte
+</button>
+
+<button onclick="toggleGrid()"
+  class="bg-slate-700 text-white px-3 py-2 rounded text-xs w-full mt-2">
+  📐 Afficher / Masquer grille
+</button>
+
+      <button onclick="exportFlyerPDF()"
+        class="bg-slate-900 text-white px-4 py-2 rounded text-sm w-full">
+        Exporter en PDF
+      </button>
+
+    </div>
+
+    <!-- PREVIEW -->
+    <div class="bg-white border rounded-lg p-6">
+      <div id="flyerPreview"
+  class="relative bg-white rounded shadow-lg overflow-hidden">
+
+  <div id="flyerCanvas" class="relative w-full h-[700px] bg-white overflow-hidden">
+
+    <!-- IMAGE FOND -->
+<img id="flyerBg" class="absolute inset-0 w-full h-full object-cover">
+
+<div id="bgOverlayLayer"
+     class="absolute inset-0 pointer-events-none">
+</div>
+
+    <!-- GRILLE -->
+    <div id="flyerGrid"
+         class="absolute inset-0 pointer-events-none hidden"
+         style="
+           background-image:
+             linear-gradient(to right, rgba(0,0,0,0.08) 1px, transparent 1px),
+             linear-gradient(to bottom, rgba(0,0,0,0.08) 1px, transparent 1px);
+           background-size: 40px 40px;">
+    </div>
+
+    <!-- CONTENEUR BLOCS -->
+    <div id="flyerLayers" class="absolute inset-0"></div>
+
+  </div>
+
+</div>
+
+    </div>
+
+  </div>
+
+</div>
+
+</section>
+<!-- MODULE : GESTION PROSPECTS -->
+<section id="view-prospects" class="hidden h-full flex flex-col fade-in">
+
+  <div class="h-16 border-b bg-white px-6 flex items-center">
+    <h1 class="text-sm font-semibold text-slate-900">
+      Gestion Prospects CRM
+    </h1>
+<button onclick="toggleLock('prospects')"
+  id="lock-prospects"
+  class="ml-4 text-lg text-slate-300">
+  🔓
+</button>
+  </div>
+
+  <div class="flex-1 p-6 bg-slate-50 space-y-6 overflow-auto">
+<!-- GUIDE APPEL RETROFIT -->
+<div class="bg-indigo-50 border border-indigo-200 rounded-lg p-5 space-y-4">
+
+  <h3 class="text-sm font-semibold text-indigo-800">
+    Guide Appel – Retrofit GOLD
+  </h3>
+
+  <div class="text-xs space-y-3 text-slate-700 leading-relaxed">
+
+    <div>
+      <p class="font-semibold text-indigo-700">1️⃣ Introduction</p>
+      <p>
+        Bonjour, je suis bien au téléphone avec Monsieur … ?  
+        M.xxx de chez Swegon.  
+        Je vous appelle concernant votre centrale GOLD installée sur votre site.
+      </p>
+    </div>
+
+    <div>
+      <p class="font-semibold text-indigo-700">2️⃣ Diagnostic rapide</p>
+      <ul class="list-disc ml-4">
+        <li>Elle est toujours en service ?</li>
+        <li>Installée en toiture ou en local ?</li>
+        <li>Elle date de quelle année ?</li>
+      </ul>
+    </div>
+
+    <div>
+      <p class="font-semibold text-indigo-700">3️⃣ Introduction du Retrofit</p>
+      <p>
+        Sur les centrales de cette génération, on constate une perte progressive
+        de performance moteurs et régulation.
+        Nous proposons une modernisation ciblée sans remplacer la structure.
+      </p>
+    </div>
+
+    <div>
+      <p class="font-semibold text-indigo-700">4️⃣ Maintenance externe ?</p>
+      <ul class="list-disc ml-4">
+        <li>Est-ce que vous êtes sous contrat avec un mainteneur ?</li>
+        <li>Le contrat inclut-il le renouvellement (P3) ?</li>
+      </ul>
+    </div>
+
+    <div>
+      <p class="font-semibold text-indigo-700">5️⃣ Si P3 actif</p>
+      <p>
+        Positionner la modernisation comme :
+        optimisation énergétique + anticipation du renouvellement,
+        en collaboration avec le mainteneur.
+      </p>
+    </div>
+
+    <div>
+      <p class="font-semibold text-indigo-700">6️⃣ Conclusion</p>
+      <p>
+        Si cela vous semble pertinent, nous pouvons organiser
+        une prévisite technique pour analyser l’état réel de la centrale.
+      </p>
+    </div>
+
+  </div>
+
+</div>
+    <!-- IMPORT + FILTRES -->
+    <div class="bg-white border rounded-lg p-5 space-y-4">
+
+      <h2 class="text-xs font-semibold uppercase text-slate-600">
+        Import & Filtrage
+      </h2>
+
+      <input type="file"
+        accept=".xls,.xlsx,.xlsm"
+        onchange="loadProspectExcel(this)"
+        class="text-xs">
+
+      <div class="grid grid-cols-2 gap-3 mt-3">
+
+  <select id="filterSegment" class="input-field text-xs">
+    <option value="">Tous segments</option>
+  </select>
+
+  <select id="filterGamme" class="input-field text-xs">
+    <option value="">Toutes gammes</option>
+  </select>
+
+  <input id="filterTaille"
+    class="input-field text-xs"
+    placeholder="Taille (ex: 7)">
+
+  <input id="filterAnnee"
+    type="number"
+    class="input-field text-xs"
+    placeholder="Année (ex: 2021)">
+
+</div>
+
+
+      <button onclick="applyCRMFilter()"
+        class="btn text-xs">
+        Appliquer filtre
+      </button>
+
+    </div>
+
+    <!-- FICHE CRM -->
+    <div id="crmCard"
+      class="bg-white border rounded-lg p-5 hidden space-y-4">
+
+      <h3 class="text-sm font-semibold text-slate-800">
+        Fiche Prospect
+      </h3>
+
+      <div class="text-xs text-slate-500">
+        N° Série : <b id="crmSerial"></b><br>
+        Type : <b id="crmType"></b><br>
+        Taille : <b id="crmSize"></b><br>
+        Année : <b id="crmYear"></b>
+      </div>
+
+      <input id="crmName" class="input-field" placeholder="Nom contact">
+      <input id="crmPhone" class="input-field" placeholder="Téléphone">
+      <input id="crmEmail" class="input-field" placeholder="Email">
+      <textarea id="crmComment"
+        class="input-field min-h-[80px]"
+        placeholder="Commentaire"></textarea>
+
+      <div class="flex justify-between">
+        <button onclick="saveCRMData()"
+          class="bg-slate-900 text-white px-4 py-2 rounded text-xs">
+          Sauvegarder
+        </button>
+
+        <button onclick="nextCRM()"
+          class="btn text-xs">
+          Suivant →
+        </button>
+      </div>
+
+  <button onclick="nextCRM()"
+    class="btn text-xs">
+    Suivant →
+  </button>
+</div>
+    </div>
+
+  </div>
+
+</section>
+<section id="view-prospects-saved" class="hidden h-full flex flex-col fade-in">
+
+  <div class="h-16 border-b bg-white px-6 flex items-center">
+    <h1 class="text-sm font-semibold text-slate-900">
+      Prospects traités
+    </h1>
+  </div>
+
+  <div class="flex-1 p-6 bg-slate-50 overflow-auto">
+
+    <div class="bg-white border rounded-lg p-4">
+
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b text-slate-400 text-xs">
+            <th class="text-left py-2">N° Série</th>
+            <th class="text-left py-2">Segment</th>
+            <th class="text-left py-2">Gamme</th>
+            <th class="text-left py-2">Contact</th>
+            <th class="text-left py-2">Téléphone</th>
+            <th class="text-left py-2">Email</th>
+            <th class="text-left py-2">Action</th>
+          </tr>
+        </thead>
+        <tbody id="savedProspectsTable"></tbody>
+      </table>
+
+    </div>
+
+  </div>
+
+</section>
+
+<section id="view-admin" class="hidden h-full flex flex-col fade-in">
+
+  <div class="h-16 border-b bg-white px-6 flex items-center">
+    <h1 class="text-sm font-semibold text-slate-900">
+      Gestion des Comptes
+    </h1>
+  </div>
+
+  <div class="flex-1 p-6 bg-slate-50 space-y-6 overflow-auto">
+
+    <div class="bg-white border rounded-lg p-5 space-y-4 max-w-md">
+
+      <h2 class="text-xs font-semibold uppercase text-slate-600">
+        Créer un compte collaborateur
+      </h2>
+
+      <input id="newUserName" class="input-field" placeholder="Nom utilisateur">
+      <input id="newUserPass" class="input-field" placeholder="Mot de passe">
+
+      <button onclick="createUserAccount()"
+        class="btn text-sm w-full">
+        Créer le compte
+      </button>
+
+    </div>
+
+    <div class="bg-white border rounded-lg p-5 max-w-md">
+      <h2 class="text-xs font-semibold uppercase text-slate-600 mb-3">
+        Comptes existants
+      </h2>
+
+      <div id="usersList"></div>
+    </div>
+
+  </div>
+
+</section>
+<!-- MODULE : WISE DATA CLIENT -->
+<section id="view-wise" class="hidden h-full flex flex-col fade-in">
+
+  <div class="h-16 border-b bg-white px-6 flex items-center">
+    <h1 class="text-sm font-semibold text-slate-900">
+      WISE – Analyse Technique & Énergétique
+    </h1>
+  </div>
+
+  <div class="flex-1 p-6 bg-slate-50 overflow-auto">
+
+    <div class="bg-white border rounded-lg p-6 space-y-6 max-w-5xl">
+
+      <input type="hidden" id="wiseEditId">
+
+      <!-- INFOS SITE -->
+      <h2 class="text-xs font-semibold uppercase text-slate-600">Informations générales</h2>
+      <input id="wiseSiteName" class="input-field" placeholder="Nom du site">
+      <input id="wiseProspectName" class="input-field" placeholder="Nom du contact">
+      <input id="wiseAddress" class="input-field" placeholder="Adresse">
+      <input id="wiseEmail" class="input-field" placeholder="Email">
+      <input id="wisePhone" class="input-field" placeholder="Téléphone">
+
+      <!-- PROFIL BATIMENT -->
+      <h2 class="text-xs font-semibold uppercase text-slate-600">A) Profil bâtiment</h2>
+      <input id="wiseSurfaceHeat" class="input-field" placeholder="Surface chauffée (m²)">
+      <input id="wiseSurfaceCool" class="input-field" placeholder="Surface refroidie (m²)">
+
+      <div class="grid grid-cols-3 gap-2 text-xs">
+        <label><input type="checkbox" value="Bureaux" class="wise-building"> Bureaux</label>
+        <label><input type="checkbox" value="Enseignement" class="wise-building"> Enseignement</label>
+        <label><input type="checkbox" value="Santé" class="wise-building"> Santé</label>
+        <label><input type="checkbox" value="Industrie" class="wise-building"> Industrie</label>
+        <label><input type="checkbox" value="Commerce" class="wise-building"> Commerce</label>
+        <label><input type="checkbox" value="Autre" class="wise-building"> Autre</label>
+      </div>
+
+      <!-- PRODUCTION CHAUD -->
+      <h2 class="text-xs font-semibold uppercase text-slate-600">B1) Production CHAUD</h2>
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <label><input type="checkbox" value="Chaudière gaz" class="wise-heat"> Chaudière gaz</label>
+        <label><input type="checkbox" value="Chaudière fioul" class="wise-heat"> Chaudière fioul</label>
+        <label><input type="checkbox" value="Réseau chaleur" class="wise-heat"> Réseau chaleur</label>
+        <label><input type="checkbox" value="PAC air/eau" class="wise-heat"> PAC air/eau</label>
+        <label><input type="checkbox" value="PAC eau/eau" class="wise-heat"> PAC eau/eau</label>
+        <label><input type="checkbox" value="Électrique" class="wise-heat"> Électrique</label>
+      </div>
+
+      <!-- PRODUCTION FROID -->
+      <h2 class="text-xs font-semibold uppercase text-slate-600">B2) Production FROID</h2>
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <label><input type="checkbox" value="Groupe froid" class="wise-cool"> Groupe froid</label>
+        <label><input type="checkbox" value="PAC réversible" class="wise-cool"> PAC réversible</label>
+        <label><input type="checkbox" value="Réseau froid" class="wise-cool"> Réseau froid</label>
+      </div>
+
+      <!-- ENR -->
+      <h2 class="text-xs font-semibold uppercase text-slate-600">B3) ENR / Récupération</h2>
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <label><input type="checkbox" value="Récupération process" class="wise-enr"> Récupération process</label>
+        <label><input type="checkbox" value="PV" class="wise-enr"> Photovoltaïque</label>
+        <label><input type="checkbox" value="Solaire thermique" class="wise-enr"> Solaire thermique</label>
+        <label><input type="checkbox" value="Aucun" class="wise-enr"> Aucun</label>
+      </div>
+
+      <!-- CONSOMMATIONS AVANT -->
+      <h2 class="text-xs font-semibold uppercase text-slate-600">C) Consommations AVANT</h2>
+      <input id="wiseBeforeYear" class="input-field" placeholder="Année déclarée">
+      <input id="wiseBeforeHeat" class="input-field" placeholder="Chauffage (kWhEF/an)">
+      <input id="wiseBeforeCool" class="input-field" placeholder="Refroidissement (kWhEF/an)">
+      <input id="wiseBeforeOther" class="input-field" placeholder="Autres usages">
+
+      <!-- CONSOMMATIONS APRES -->
+      <h2 class="text-xs font-semibold uppercase text-slate-600">D) Consommations APRÈS</h2>
+      <input id="wiseAfterYear" class="input-field" placeholder="Année déclarée">
+      <input id="wiseAfterHeat" class="input-field" placeholder="Chauffage (kWhEF/an)">
+      <input id="wiseAfterCool" class="input-field" placeholder="Refroidissement (kWhEF/an)">
+      <input id="wiseAfterOther" class="input-field" placeholder="Autres usages">
+
+      <button onclick="saveWiseData()"
+        class="btn text-sm w-full">
+        Enregistrer / Modifier fiche
+      </button>
+<button onclick="exportWisePDF()"
+  class="bg-slate-900 text-white px-4 py-2 rounded text-sm w-full mt-2">
+  Exporter en PDF
+</button>
+    </div>
+
+    <div class="bg-white border rounded-lg p-6 mt-6">
+      <h2 class="text-xs font-semibold uppercase text-slate-600 mb-4">
+        Fiches enregistrées
+      </h2>
+      <div id="wiseList"></div>
+    </div>
+
+  </div>
+</section>
+
+    </main>
+
+    <script>
+const ROI_DATABASE = {
+  "004": { prix: 8538.36, consoAvant: 7256, consoApres: 6385, gainPct: 12, ecoEuro: 156.72, roi: 54.5, debit: 1300, puissance: 0.83, co2: 510 },
+  "005": { prix: 8538.36, consoAvant: 11357, consoApres: 8858, gainPct: 22, ecoEuro: 449.73, roi: 19.0, debit: 1800, puissance: 1.30, co2: 510 },
+  "008": { prix: 9653.87, consoAvant: 13759, consoApres: 10182, gainPct: 26, ecoEuro: 643.93, roi: 15.0, debit: 2700, puissance: 1.58, co2: 510 },
+  "014": { prix: 10708.35, consoAvant: 12036, consoApres: 10592, gainPct: 12, ecoEuro: 259.98, roi: 41.2, debit: 3100, puissance: 1.38, co2: 510 },
+  "020": { prix: 10766.71, consoAvant: 32760, consoApres: 26863, gainPct: 18, ecoEuro: 1061.42, roi: 10.1, debit: 5400, puissance: 3.75, co2: 510 },
+  "025": { prix: 11463.00, consoAvant: 25237, consoApres: 19685, gainPct: 22, ecoEuro: 999.40, roi: 11.5, debit: 4000, puissance: 2.89, co2: 510 },
+  "030": { prix: 14008.87, consoAvant: 54600, consoApres: 48048, gainPct: 12, ecoEuro: 1179.36, roi: 11.9, debit: 9000, puissance: 6.25, co2: 510 },
+  "035": { prix: 14538.21, consoAvant: 37740, consoApres: 33966, gainPct: 10, ecoEuro: 679.31, roi: 21.4, debit: 8640, puissance: 4.32, co2: 510 },
+  "040": { prix: 16356.36, consoAvant: 85176, consoApres: 70696, gainPct: 17, ecoEuro: 2606.39, roi: 6.3, debit: 13000, puissance: 9.75, co2: 510 },
+  "050": { prix: 19879.68, consoAvant: 50232, consoApres: 38679, gainPct: 23, ecoEuro: 2079.60, roi: 9.6, debit: 8280, puissance: 5.75, co2: 510 },
+  "060": { prix: 24221.77, consoAvant: 78867, consoApres: 67037, gainPct: 15, ecoEuro: 2129.40, roi: 11.4, debit: 13000, puissance: 9.03, co2: 510 },
+  "070": { prix: 24391.53, consoAvant: 51979, consoApres: 36385, gainPct: 30, ecoEuro: 2806.88, roi: 8.7, debit: 12600, puissance: 5.95, co2: 510 },
+  "080": { prix: 27666.48, consoAvant: 158995, consoApres: 130376, gainPct: 18, ecoEuro: 5151.44, roi: 5.4, debit: 25200, puissance: 18.20, co2: 510 }
+};
+        // --- CORE DATA & STATE ---
+        let currentUser = null;
+     let defaultFlyerConfig = {
+  title: "RETROFIT CENTRALES DE TRAITEMENT D’AIR",
+  text: `RETROFIT & OPTIMISATION ÉNERGÉTIQUE
+
+Remplacement des composants critiques :
+• Régulation
+• Ventilateurs
+• Échangeurs
+• Motorisations
+
+Amélioration des rendements
+Réduction des coûts d'exploitation
+Conformité réglementaire assurée`,
+  badge: "NOUVEAU",
+  primaryColor: "#1e3a8a",
+  textColor: "#ffffff",
+  textBoxColor: "#000000",
+  textBoxOpacity: 70,
+  titleSize: 55,
+  bodySize: 20,
+  font: "Inter",
+  imageBrightness: 70,
+  imageOpacity: 100
+};
+
+let appData = {
+  templates: {},
+  collaborators: [],
+  documents: [],
+  archives: [],
+  stats: [],
+  prospects: [],
+  notes: [],
+  flyers: [defaultFlyerConfig],
+  wise: [],
+roiTable: [],
+
+  // 🔒 SYSTEME CADENAS
+ locks: {
+  emailing: false,
+  prospects: false,
+  roi: false
+},
+emailingData: {},
+crmData: [],
+roiData: [],
+};
+ 
+        const defaultTemplates = {
+            'maintenance': { name: 'Maintenance', content: "Bonjour {client},\n\nNous confirmons notre intervention de maintenance le {date} pour la société {societe}.\nAdresse : {adresse}\n\nCordialement,\nService Technique", attachment: null },
+            'devis': { name: 'Envoi Devis', content: "Bonjour {client},\n\nSuite à notre visite, veuillez trouver le devis {ref} ci-joint pour le contrat {contrat}.\n\nDans l'attente de votre retour,\nCordialement.", attachment: null }
+        };
+        
+        const defaultCollaborators = [
+            { id: 1, name: "Thomas Bertin", role: "Technicien", lat: 48.8566, lng: 2.3522 },
+            { id: 2, name: "Julie Martin", role: "Commercial", lat: 45.7640, lng: 4.8357 },
+            { id: 3, name: "Marc Dubois", role: "Technicien", lat: 44.8378, lng: -0.5792 },
+            { id: 4, name: "Sophie Leroux", role: "Commercial", lat: 50.6292, lng: 3.0573 }
+        ];
+// =======================
+// AUTH SIMPLE + ADMIN
+// =======================
+async function handleLogin() {
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value.trim();
+
+  const users = safeParse("swegon_users", {});
+  const db = safeParse("swegon_data", {});
+
+  // ADMIN FIXE
+  if (user === "idriss" && pass === "didou") {
+    currentUser = "idriss";
+    loadUserData();
+    return;
+  }
+
+  // COMPTE AURELIEN
+  if (user === "Aurélien Veyrier" && pass === "SwegonAV") {
+    currentUser = "AurelienVeyrier";
+
+    if (!users[currentUser]) {
+      users[currentUser] = { password: btoa("SwegonAV") };
+      localStorage.setItem("swegon_users", JSON.stringify(users));
+    }
+
+    loadUserData();
+    return;
+  }
+// COMPTE PROF IUT LYON 1
+if (user === "iutlyon1" && pass === "iutlyon.1") {
+  currentUser = "iutlyon1";
+
+  if (!users[currentUser]) {
+    users[currentUser] = { password: await hashPassword("iutlyon.1") };
+    localStorage.setItem("swegon_users", JSON.stringify(users));
+  }
+
+  loadUserData();
+  return;
+}
+// COMPTE FLORENT
+if (user === "florent" && pass === "swegonFR") {
+  currentUser = "florent";
+
+  if (!users[currentUser]) {
+    users[currentUser] = { password: await hashPassword("swegonFR") };
+    localStorage.setItem("swegon_users", JSON.stringify(users));
+  }
+
+  loadUserData();
+  return;
+}
+  // AUTRES COMPTES
+  if (users[user] && users[user].password) {
+    const valid = await checkPassword(pass, users[user].password);
+    if (valid) {
+      currentUser = user;
+      loadUserData();
+      return;
+    }
+  }
+
+  alert("Identifiants incorrects");
+}
+function safeParse(key, fallback = {}) {
+  try {
+    return JSON.parse(localStorage.getItem(key)) || fallback;
+  } catch (e) {
+    console.warn("Corrupted storage:", key);
+    localStorage.removeItem(key);
+    return fallback;
+  }
+}
+function getDefaultAppData() {
+  return {
+    templates: defaultTemplates,
+    collaborators: defaultCollaborators,
+    documents: [],
+    archives: [],
+    stats: [],
+    prospects: [],
+    notes: [],
+    flyers: [defaultFlyerConfig],
+    wise: [],
+    locks: {
+      emailing: false,
+      prospects: false,
+      roi: false
+    },
+    emailingData: {},
+    crmData: [],
+    roiData: [],
+    roiTable: []
+  };
+}
+
+// 🔥 ICI TU COLLES TON BLOC
+function loadUserData() {
+
+  const db = safeParse("swegon_data");
+
+  appData = db[currentUser] || getDefaultAppData();
+
+// 🔥 sécurise toutes les clés
+appData = {
+  ...getDefaultAppData(),
+  ...appData
+};
+
+  document.getElementById("loginModal").classList.add("hidden");
+  document.getElementById("userNameDisplay").innerText = currentUser;
+  document.getElementById("userAvatar").innerText =
+    currentUser.charAt(0).toUpperCase();
+
+try { initEmailModule(); } catch(e){ console.error(e); }
+try { initMap(); } catch(e){ console.error(e); }
+try { renderCollaborators(); } catch(e){ console.error(e); }
+try { renderDocumentation(); } catch(e){ console.error(e); }
+try { renderArchives(); } catch(e){ console.error(e); }
+try { renderStatsChart(); } catch(e){ console.error(e); }
+try { renderStatsTable(); } catch(e){ console.error(e); }
+try { renderWiseList(); } catch(e){ console.error(e); }
+
+
+  // 🔥 Charger le flyer sauvegardé
+  if (appData.flyers && appData.flyers.length) {
+    const flyer = appData.flyers[0];
+
+flyerImage = flyer.image || "";
+flyerLogo = flyer.logo || "";
+cornerImage = flyer.corner || "";
+
+    document.getElementById("flyerTitle").value = flyer.title || "";
+    document.getElementById("flyerText").value = flyer.text || "";
+    document.getElementById("flyerBadge").value = flyer.badge || "";
+    document.getElementById("flyerColor").value = flyer.primaryColor || "#4f46e5";
+    document.getElementById("textColor").value = flyer.textColor || "#ffffff";
+    document.getElementById("textBoxColor").value = flyer.textBoxColor || "#000000";
+    document.getElementById("textBoxOpacity").value = flyer.textBoxOpacity || 70;
+    document.getElementById("titleSize").value = flyer.titleSize || 50;
+    document.getElementById("bodySize").value = flyer.bodySize || 18;
+    document.getElementById("fontFamily").value = flyer.font || "Inter";
+
+    updateFlyer();
+  }
+// 🔒 Rechargement emailing si verrou actif
+if (appData.locks?.emailing && appData.emailingData) {
+
+  emailingData = appData.emailingData;
+
+  document.getElementById("statTotalEmails").innerText =
+    Object.keys(emailingData).length;
+
+  renderEmailingList(emailingData);
+  populateVersionFilter();
+}
+
+updateLockUI("emailing");
+// 🔒 Rechargement prospects
+if (appData.locks?.prospects && appData.crmData) {
+  crmData = appData.crmData;
+}
+updateLockUI("prospects");
+
+// 🔒 Rechargement ROI
+if (appData.locks?.roi && appData.roiData) {
+  roiData = appData.roiData;
+}
+updateLockUI("roi");
+if (appData.roiTable && appData.roiTable.length) {
+  roiData = appData.roiTable;
+console.log("ROI KEYS:", Object.keys(roiData[0]));
+  renderROITable();
+
+}
+switchTab('dashboard');
+}
+initROIModule();
+function saveAppData() {
+
+  if (appData.locks?.emailing) {
+    appData.emailingData = emailingData;
+  }
+
+  if (appData.locks?.prospects) {
+    appData.crmData = crmData;
+  }
+
+  if (appData.locks?.roi) {
+    appData.roiData = roiData;
+  }
+
+  const db = safeParse("swegon_data");
+  db[currentUser] = appData;
+  localStorage.setItem("swegon_data", JSON.stringify(db));
+}
+
+function logout() {
+  window.location.reload();
+}
+
+               // --- GLOBAL UI ---
+      
+function switchTab(tabId) {
+console.log("TAB:", tabId);
+
+  if (tabId === "admin" && currentUser !== "idriss") {
+    alert("Accès réservé à l'admin");
+    return;
+  }
+
+  document.querySelectorAll("section").forEach(el =>
+    el.classList.add("hidden")
+  );
+
+  document.querySelectorAll(".sidebar-link").forEach(el =>
+    el.classList.remove("active-nav", "text-slate-900")
+  );
+
+  const navBtn = document.getElementById("nav-" + tabId);
+  if (navBtn) {
+    navBtn.classList.add("active-nav", "text-slate-900");
+  }
+
+  const view = document.getElementById("view-" + tabId);
+  if (view) {
+    view.classList.remove("hidden");
+  }
+
+  if (tabId === "distance-map" && map) {
+    setTimeout(() => map.invalidateSize(), 100);
+  }
+
+if (tabId === "stats") {
+  setTimeout(() => {
+    const canvas = document.getElementById("statsChart");
+    if (canvas) {
+      renderStatsChart();
+    }
+  }, 200);
+}
+
+  if (tabId === "admin") {
+    renderUsersList();
+  }
+if (tabId === "dashboard") {
+  setTimeout(() => {
+    renderDashboard();
+    initDashboardMap(); // 🔥 AJOUT
+    dashboardMap.invalidateSize(); // 🔥 IMPORTANT pour Leaflet
+  }, 200);
+}
+  if (tabId === "prospects-saved") {
+    renderSavedProspects();
+  }
+if (tabId === "roi-simulation") {
+  setTimeout(() => {
+    if (roiChartInstance) {
+  roiChartInstance.resize();
+}
+  }, 100);
+}
+}
+        // --- MODULE 1: EMAIL GENERATOR ---
+        function initEmailModule() {
+            const selector = document.getElementById('templateSelector');
+            selector.innerHTML = '<option value="new">+ Nouveau Modèle</option>';
+            
+            if(appData && appData.templates) {
+                Object.keys(appData.templates).forEach(key => {
+                    const option = document.createElement('option');
+                    option.value = key;
+                    option.text = appData.templates[key].name;
+                    selector.add(option);
+                });
+                
+                const firstKey = Object.keys(appData.templates)[0];
+                if (firstKey) {
+                    selector.value = firstKey;
+                    loadTemplate(firstKey);
+                }
+            }
+        }
+
+        let currentAttachmentName = null;
+
+        function loadTemplate(key) {
+            const nameInput = document.getElementById('templateNameInput');
+            const sourceInput = document.getElementById('templateSource');
+            
+            if (key === 'new') {
+                nameInput.value = '';
+                sourceInput.value = '';
+                currentAttachmentName = null;
+            } else if (appData.templates[key]) {
+                nameInput.value = appData.templates[key].name;
+                sourceInput.value = appData.templates[key].content;
+                currentAttachmentName = appData.templates[key].attachment || null;
+            }
+            updateAttachmentUI();
+            updatePreview();
+        }
+let dashboardMap = null;
+
+function initDashboardMap() {
+setTimeout(() => {
+  dashboardMap.invalidateSize();
+}, 100);
+
+  if (dashboardMap) return;
+
+  dashboardMap = L.map('dashboardMap', {
+    zoomControl: false,
+    dragging: true
+  }).setView([46.6, 2.5], 6);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(dashboardMap);
+
+  renderDashboardCollaborators();
+}
+function renderDashboardCollaborators() {
+
+  if (!dashboardMap) return;
+
+  appData.collaborators.forEach(collab => {
+
+    const color = collab.role === "Technicien"
+      ? "#4f46e5"
+      : "#f59e0b";
+
+    L.circleMarker([collab.lat, collab.lng], {
+      radius: 6,
+      color,
+      fillOpacity: 0.8
+    })
+    .addTo(dashboardMap)
+    .bindPopup(`<b>${collab.name}</b><br>${collab.role}`);
+  });
+}
+        function saveCurrentTemplate() {
+            const name = document.getElementById('templateNameInput').value || 'Sans titre';
+            const content = document.getElementById('templateSource').value;
+            let currentSelector = document.getElementById('templateSelector').value;
+            
+            const id = (currentSelector === 'new') ? 'tpl_' + Date.now() : currentSelector;
+
+            appData.templates[id] = { name, content, attachment: currentAttachmentName };
+            saveAppData();
+            
+            if(currentSelector === 'new') {
+                initEmailModule();
+                document.getElementById('templateSelector').value = id;
+            } else {
+                const option = document.querySelector(`#templateSelector option[value="${id}"]`);
+                if(option) option.text = name;
+            }
+            
+            const btn = document.querySelector('button[onclick="saveCurrentTemplate()"]');
+            const original = btn.innerHTML;
+            btn.innerHTML = '<iconify-icon icon="solar:check-circle-linear"></iconify-icon> Sauvegardé';
+            btn.classList.replace('bg-slate-900', 'bg-emerald-600');
+            setTimeout(() => {
+                btn.innerHTML = original;
+                btn.classList.replace('bg-emerald-600', 'bg-slate-900');
+            }, 2000);
+        }
+
+        function deleteCurrentTemplate() {
+            let currentSelector = document.getElementById('templateSelector').value;
+            if(currentSelector === 'new') return;
+            
+            if(confirm("Supprimer ce modèle définitivement ?")) {
+                delete appData.templates[currentSelector];
+                saveAppData();
+                initEmailModule();
+                loadTemplate('new');
+            }
+        }
+
+        function handleFileSelect(input) {
+            if (input.files && input.files[0]) {
+                currentAttachmentName = input.files[0].name;
+                updateAttachmentUI();
+            }
+        }
+
+        function clearAttachment() {
+            currentAttachmentName = null;
+            document.getElementById('fileInput').value = '';
+            updateAttachmentUI();
+        }
+
+        function updateAttachmentUI() {
+            const display = document.getElementById('attachmentDisplay');
+            const btn = document.getElementById('clearAttBtn');
+            if (currentAttachmentName) {
+                display.innerHTML = `<span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded flex items-center gap-1 font-semibold border border-indigo-200">${currentAttachmentName}</span>`;
+                display.classList.remove('text-slate-400', 'italic');
+                btn.classList.remove('hidden');
+            } else {
+                display.innerText = "Aucune pièce jointe (simulé)";
+                display.classList.add('text-slate-400', 'italic');
+                btn.classList.add('hidden');
+            }
+        }
+
+        function updatePreview() {
+            let text = document.getElementById('templateSource').value;
+          const vars = {
+    '{client}': document.getElementById('var_client').value,
+    '{societe}': document.getElementById('var_societe').value,
+    '{adresse}': document.getElementById('var_adresse').value,
+    '{ref}': document.getElementById('var_ref_devis').value,
+    '{contrat}': document.getElementById('var_contrat').value,
+    '{date}': document.getElementById('var_date').value,
+    '{tech}': ''
+};
+
+            for (const [key, val] of Object.entries(vars)) {
+                const replacement = val ? val : `<span class="text-slate-400 bg-slate-100 px-1 rounded mx-0.5 select-none text-xs border border-slate-200">${key}</span>`;
+                text = text.split(key).join(replacement);
+            }
+            document.getElementById('previewOutput').innerHTML = text;
+        }
+
+        function insertVar(varName) {
+            const textarea = document.getElementById('templateSource');
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            const before = text.substring(0, start);
+            const after  = text.substring(end, text.length);
+            textarea.value = (before + varName + after);
+            textarea.selectionStart = textarea.selectionEnd = start + varName.length;
+            textarea.focus();
+            updatePreview();
+        }
+
+        function copyToClipboard() {
+            const text = document.getElementById('previewOutput').innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                alert("Texte copié dans le presse-papier !");
+            });
+        }
+
+        // --- MODULE 2: MAP (INTERACTIVE) ---
+        let map;
+        let clientMarker = null;
+        let routeLine = null;
+        let isAddingCollab = false;
+
+        function initMap() {
+            if(map) return;
+            map = L.map('map', { zoomControl: false }).setView([46.603354, 1.888334], 6);
+            
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap', subdomains: 'abcd', maxZoom: 19
+            }).addTo(map);
+
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+            renderCollaborators();
+
+     map.on('click', function(e) {
+
+    if (isAddingCollab) {
+        finishAddCollab(e.latlng);
+        return;
+    }
+
+    setClientLocation(e.latlng);
+
+});
+        }
+
+        async function searchLocation() {
+            const query = document.getElementById('addressSearch').value;
+            if(!query) return;
+
+            const btn = document.getElementById('btnSearch');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<iconify-icon icon="solar:refresh-linear" class="animate-spin"></iconify-icon>';
+
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+
+                if (data && data.length > 0) {
+                    const lat = parseFloat(data[0].lat);
+                    const lon = parseFloat(data[0].lon);
+                    const latlng = { lat: lat, lng: lon };
+                    
+                    map.setView(latlng, 13);
+                    setClientLocation(latlng);
+                } else {
+                    alert("Adresse introuvable.");
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                btn.innerHTML = originalHtml;
+            }
+        }
+
+        function renderCollaborators() {
+            map.eachLayer(layer => {
+                if (layer instanceof L.Marker && layer !== clientMarker) map.removeLayer(layer);
+            });
+
+            const listEl = document.getElementById('collabList');
+            listEl.innerHTML = '';
+
+            appData.collaborators.forEach(collab => {
+                const item = document.createElement('div');
+                item.className = "p-3 hover:bg-slate-50 transition cursor-pointer group flex items-center justify-between border-b border-slate-50";
+                item.onclick = () => {
+                    map.flyTo([collab.lat, collab.lng], 10);
+                };
+                
+                const roleColor = collab.role === 'Technicien' ? 'bg-indigo-100 text-indigo-600 border-indigo-200' : 'bg-amber-100 text-amber-600 border-amber-200';
+                
+                item.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full ${roleColor} border flex items-center justify-center shrink-0 text-xs font-bold shadow-sm">
+                            ${collab.name.charAt(0)}
+                        </div>
+                        <div>
+                            <div class="text-xs font-semibold text-slate-700">${collab.name}</div>
+                            <div class="text-[10px] text-slate-400">${collab.role}</div>
+                        </div>
+                    </div>
+                    <button onclick="deleteCollab(event, ${collab.id})" class="text-slate-300 hover:text-red-500 hover:bg-red-50 p-1.5 rounded transition opacity-0 group-hover:opacity-100" title="Supprimer">
+                        <iconify-icon icon="solar:trash-bin-trash-linear" width="16"></iconify-icon>
+                    </button>
+                `;
+                listEl.appendChild(item);
+
+                const pinClass = collab.role === 'Technicien' ? 'technician' : 'commercial';
+                const iconHtml = `<div class="marker-pin ${pinClass}"></div>`;
+                const customIcon = L.divIcon({ className: 'custom-div-icon', html: iconHtml, iconSize: [30, 42], iconAnchor: [15, 42] });
+                
+                const marker = L.marker([collab.lat, collab.lng], { 
+                    icon: customIcon,
+                    draggable: true 
+                }).addTo(map);
+
+                marker.on('dragend', function(e) {
+                    const newPos = e.target.getLatLng();
+                    collab.lat = newPos.lat;
+                    collab.lng = newPos.lng;
+                    saveAppData();
+                    if(clientMarker) calculateDistance(clientMarker.getLatLng());
+                });
+
+                marker.bindPopup(`<b>${collab.name}</b><br>${collab.role}`);
+            });
+        }
+
+        function setClientLocation(latlng) {
+            if (clientMarker) map.removeLayer(clientMarker);
+            
+            const iconHtml = `<div class="marker-pin client flex items-center justify-center shadow-lg border-2 border-white"><iconify-icon icon="solar:user-linear" class="text-white text-lg"></iconify-icon></div>`;
+            const customIcon = L.divIcon({ className: 'custom-div-icon', html: iconHtml, iconSize: [36, 36], iconAnchor: [18, 18] });
+            
+            clientMarker = L.marker(latlng, {
+                icon: customIcon,
+                draggable: true
+            }).addTo(map);
+
+            clientMarker.on('dragend', function(e) {
+                calculateDistance(e.target.getLatLng());
+            });
+
+            calculateDistance(latlng);
+        }
+
+async function calculateDistance(clientLoc) {
+
+    if (!appData.collaborators.length) return;
+
+    const clientLat = clientLoc.lat ?? clientLoc[0];
+    const clientLng = clientLoc.lng ?? clientLoc[1];
+
+    if (clientLat == null || clientLng == null) return;
+
+    let bestTech = null;
+    let minDist = Infinity;
+    let bestDuration = 0;
+    let bestRouteGeometry = null; // 🔥 on garde la vraie route ici
+
+    for (const collab of appData.collaborators) {
+
+        const url = `https://router.project-osrm.org/route/v1/driving/${collab.lng},${collab.lat};${clientLng},${clientLat}?overview=full&geometries=geojson`;
+
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (!data.routes || !data.routes.length) continue;
+
+            const roadDistance = data.routes[0].distance;
+            const duration = data.routes[0].duration;
+
+            if (roadDistance < minDist) {
+                minDist = roadDistance;
+                bestTech = collab;
+                bestDuration = duration;
+                bestRouteGeometry = data.routes[0].geometry; // 🔥 on stocke la vraie route
+            }
+
+        } catch (error) {
+            console.error("Erreur OSRM :", error);
+        }
+    }
+
+    if (!bestTech || !bestRouteGeometry) return;
+
+    const distKm = (minDist / 1000).toFixed(1);
+    const totalMinutes = Math.round(bestDuration / 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    const infoBox = document.getElementById('bestRouteInfo');
+    infoBox.classList.remove('opacity-60');
+
+    infoBox.innerHTML = `
+        <div class="bg-indigo-50/50 border border-indigo-100 rounded-lg p-4 fade-in">
+            <div class="flex justify-between items-start mb-3">
+                <div>
+                    <p class="text-[10px] text-indigo-500 font-bold uppercase tracking-wider mb-0.5">
+                        Plus Proche (Route réelle)
+                    </p>
+                    <p class="text-sm font-bold text-slate-800">${bestTech.name}</p>
+                    <p class="text-xs text-slate-500">${bestTech.role}</p>
+                </div>
+                <div class="text-right bg-white px-3 py-1 rounded shadow-sm border border-slate-100">
+                    <p class="text-lg font-bold text-indigo-600">
+                        ${distKm} km
+                    </p>
+                    <p class="text-[10px] text-slate-400">
+                        ~${hours}h ${minutes}min
+                    </p>
+                </div>
+            </div>
+            <button onclick="prepareMail('${bestTech.name}')"
+                class="w-full bg-white text-slate-700 py-2 rounded border border-slate-200 hover:border-indigo-300 hover:text-indigo-600 transition text-xs font-semibold">
+                Contacter ce collaborateur
+            </button>
+        </div>
+    `;
+
+    if (routeLine) map.removeLayer(routeLine);
+
+    // 🔥 conversion GeoJSON → Leaflet
+    const routeCoords = bestRouteGeometry.coordinates.map(coord => [
+        coord[1],
+        coord[0]
+    ]);
+
+    routeLine = L.polyline(routeCoords, {
+        color: '#4f46e5',
+        weight: 4,
+        opacity: 0.9
+    }).addTo(map);
+
+    map.fitBounds(routeLine.getBounds(), { padding: [60, 60] });
+}
+        function prepareMail(name) {
+            switchTab('mail-generator');
+            const area = document.getElementById('templateSource');
+            if(area.value.includes('{tech}')) {
+                const newText = area.value.replace(/{tech}/g, name);
+                area.value = newText;
+            } else {
+                area.value += `\n\n(Info: Technicien assigné : ${name})`;
+            }
+            updatePreview();
+        }
+
+        function toggleAddCollabMode() {
+            isAddingCollab = true;
+            document.getElementById('addCollabForm').classList.remove('hidden');
+            document.getElementById('btnAddCollab').classList.add('hidden');
+            document.getElementById('map').style.cursor = 'crosshair';
+            map.getContainer().classList.add('ring-4', 'ring-indigo-500/30', 'ring-inset');
+        }
+
+        function cancelAddCollab() {
+            isAddingCollab = false;
+            document.getElementById('addCollabForm').classList.add('hidden');
+            document.getElementById('btnAddCollab').classList.remove('hidden');
+            document.getElementById('map').style.cursor = '';
+            map.getContainer().classList.remove('ring-4', 'ring-indigo-500/30', 'ring-inset');
+        }
+
+        function finishAddCollab(latlng) {
+            const name = document.getElementById('newCollabName').value || 'Nouveau';
+            const role = document.getElementById('newCollabRole').value;
+            const newId = Date.now();
+            
+            appData.collaborators.push({ id: newId, name, role, lat: latlng.lat, lng: latlng.lng });
+            saveAppData();
+            renderCollaborators();
+            cancelAddCollab();
+            document.getElementById('newCollabName').value = '';
+        }
+
+        function deleteCollab(e, id) {
+            e.stopPropagation();
+            if(confirm('Supprimer ce collaborateur ?')) {
+                appData.collaborators = appData.collaborators.filter(c => c.id !== id);
+                saveAppData();
+                renderCollaborators();
+                
+                if(routeLine) {
+                    map.removeLayer(routeLine);
+                    routeLine = null;
+                    document.getElementById('bestRouteInfo').innerHTML = '<div class="bg-slate-50 border border-slate-100 rounded-lg p-4 text-center"><p class="text-xs text-slate-400 italic">Recalcul en cours...</p></div>';
+                    if(clientMarker) calculateDistance(clientMarker.getLatLng());
+                }
+            }
+        }
+
+        function resetMap() {
+            map.setView([46.603354, 1.888334], 6);
+            if (clientMarker) map.removeLayer(clientMarker);
+            if (routeLine) map.removeLayer(routeLine);
+            clientMarker = null;
+            routeLine = null;
+            document.getElementById('addressSearch').value = '';
+            document.getElementById('bestRouteInfo').classList.add('opacity-60');
+            document.getElementById('bestRouteInfo').innerHTML = '<div class="bg-slate-50 border border-slate-100 rounded-lg p-4 text-center"><p class="text-xs text-slate-400 italic">Recherchez un client...</p></div>';
+        }
+
+        function locateUser() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    map.setView([lat, lng], 12);
+                });
+            } else {
+                alert("Géolocalisation non supportée");
+            }
+        }
+
+function archiveMail() {
+  const client = document.getElementById("var_client").value;
+  const societe = document.getElementById("var_societe").value;
+  const adresse = document.getElementById("var_adresse").value;
+  const type = document.getElementById("templateNameInput").value || "Non défini";
+  const contenu = document.getElementById("previewOutput").innerText;
+
+const email = prompt("Email du client ?");
+
+if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  alert("Email invalide");
+  return;
+}
+
+  appData.archives.unshift({
+    id: Date.now(),
+    date: new Date().toLocaleString(),
+    client,
+    societe,
+    adresse,
+    email,
+    type,
+    contenu
+  });
+
+  saveAppData();
+  renderArchives();
+  alert("Mail archivé");
+}
+
+function renderArchives() {
+  const list = document.getElementById("archiveList");
+  if (!list) return;
+
+  list.innerHTML = "";
+
+  appData.archives.forEach(mail => {
+    const div = document.createElement("div");
+    div.className = "p-3 hover:bg-slate-50 cursor-pointer";
+    div.onclick = () => showArchive(mail.id);
+
+    div.innerHTML = `
+      <p class="text-xs font-semibold">${mail.client}</p>
+      <p class="text-[10px] text-slate-400">${mail.type}</p>
+      <p class="text-[10px] text-slate-400">${mail.date}</p>
+    `;
+    list.appendChild(div);
+  });
+}
+
+function showArchive(id) {
+  const mail = appData.archives.find(m => m.id === id);
+  if (!mail) return;
+
+  document.getElementById("archiveDetail").innerHTML = `
+    <div class="bg-white border rounded p-5 space-y-2">
+      <p><b>Client :</b> ${mail.client}</p>
+      <p><b>Email :</b> ${mail.email}</p>
+      <p><b>Société :</b> ${mail.societe}</p>
+      <p><b>Adresse :</b> ${mail.adresse}</p>
+      <p><b>Raison :</b> ${mail.type}</p>
+      <p><b>Date :</b> ${mail.date}</p>
+      <hr>
+      <pre class="whitespace-pre-wrap text-sm">${mail.contenu}</pre>
+    </div>
+  `;
+}
+function addDocumentation(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function () {
+    appData.documents.push({
+      id: Date.now(),
+      name: file.name,
+      type: file.type,
+      data: reader.result
+    });
+
+    saveAppData();
+    renderDocumentation();
+    input.value = "";
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderDocumentation() {
+  const list = document.getElementById("docList");
+  if (!list) return;
+
+  list.innerHTML = "";
+
+  if (!appData.documents.length) {
+    list.innerHTML =
+      "<p class='text-xs text-slate-400 italic'>Aucun document enregistré</p>";
+    return;
+  }
+
+  appData.documents.forEach(doc => {
+    const div = document.createElement("div");
+    div.className =
+      "flex items-center justify-between bg-slate-50 border border-slate-200 rounded px-3 py-2";
+
+    div.innerHTML = `
+      <span class="truncate">${doc.name}</span>
+      <div class="flex gap-2">
+        <button onclick="downloadDoc(${doc.id})"
+          class="text-xs text-indigo-600 hover:underline">
+          Télécharger
+        </button>
+        <button onclick="deleteDoc(${doc.id})"
+          class="text-xs text-red-500 hover:underline">
+          Supprimer
+        </button>
+      </div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+function downloadDoc(id) {
+
+  const doc = appData.documents.find(d => d.id === id);
+  if (!doc) return;
+
+  const link = document.createElement("a");
+  link.href = doc.data;
+  link.download = doc.name;
+  link.click();
+}
+
+
+function deleteDoc(id) {
+  if (!confirm("Supprimer ce document ?")) return;
+  appData.documents = appData.documents.filter(d => d.id !== id);
+  saveAppData();
+  renderDocumentation();
+}
+let statsChart = null;
+
+function renderStatsChart() {
+  const canvas = document.getElementById('statsChart');
+  if (!canvas) return;
+
+  if (!appData.stats || appData.stats.length === 0) return;
+
+  const labels = appData.stats.map(s => s.date);
+  const data = appData.stats.map(s => s.amount);
+
+destroyChart(statsChart);
+  statsChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        borderColor: '#4f46e5',
+        backgroundColor: 'rgba(79,70,229,0.1)',
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: {
+          ticks: {
+            callback: v => v.toLocaleString('fr-FR') + ' €'
+          }
+        }
+      }
+    }
+  });
+}
+function addStatPoint() {
+
+  const amountInput = document.getElementById('statAmount');
+  const dateInput = document.getElementById('statDate');
+
+  const amount = parseFloat(amountInput.value.replace(",", "."));
+  const selectedDate = dateInput.value;
+
+  if (isNaN(amount)) {
+    alert("Montant invalide");
+    return;
+  }
+
+  const date = selectedDate
+    ? new Date(selectedDate).toLocaleDateString()
+    : new Date().toLocaleDateString();
+
+  appData.stats.push({
+    date: date,
+    amount: amount
+  });
+
+  saveAppData();
+  renderStatsChart();
+  renderStatsTable();
+  renderDashboard(); // 🔥 update direct
+
+  amountInput.value = '';
+  dateInput.value = '';
+}
+
+function deleteStat(index) {
+  if (!confirm("Supprimer cette entrée ?")) return;
+
+  appData.stats.splice(index, 1);
+
+  saveAppData();
+  renderStatsChart();
+  renderStatsTable();
+  renderDashboard();
+}
+              // =================================================================
+        // MODULE: NOTES
+        // =================================================================
+        let currentNoteId = null;
+
+        function renderNotes() {
+            const list = document.getElementById('notesList');
+            if(!list) return;
+            list.innerHTML = '';
+            
+            // Sort by recent
+            const sorted = [...appData.notes].sort((a,b) => b.updatedAt - a.updatedAt);
+            
+            sorted.forEach(note => {
+                const div = document.createElement('div');
+                div.className = `p-4 border-b border-slate-100 cursor-pointer hover:bg-slate-50 ${note.id === currentNoteId ? 'bg-indigo-50 border-l-4 border-l-indigo-600' : ''}`;
+                div.onclick = () => loadNote(note.id);
+                div.innerHTML = `
+                    <h4 class="text-sm font-semibold text-slate-800 truncate">${note.title || 'Sans titre'}</h4>
+                    <p class="text-xs text-slate-400 mt-1 truncate">${note.body || 'Vide'}</p>
+                    <p class="text-[10px] text-slate-300 mt-2">${new Date(note.updatedAt).toLocaleDateString()}</p>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function createNewNote() {
+            const newNote = { id: Date.now(), title: '', body: '', updatedAt: Date.now() };
+            appData.notes.push(newNote);
+            loadNote(newNote.id);
+        }
+
+        function loadNote(id) {
+            currentNoteId = id;
+            const note = appData.notes.find(n => n.id === id);
+            if(note) {
+                document.getElementById('noteTitleInput').value = note.title;
+                document.getElementById('noteBodyInput').value = note.body;
+                renderNotes();
+            }
+        }
+
+        function saveCurrentNote() {
+            if(!currentNoteId) createNewNote();
+            const note = appData.notes.find(n => n.id === currentNoteId);
+            if(note) {
+                note.title = document.getElementById('noteTitleInput').value;
+                note.body = document.getElementById('noteBodyInput').value;
+                note.updatedAt = Date.now();
+                document.getElementById('lastSavedTime').innerText = 'Enregistré à ' + new Date().toLocaleTimeString();
+                saveAppData();
+                // Debounce rendering list to avoid jumpy typing
+                clearTimeout(window.noteRenderTimeout);
+                window.noteRenderTimeout = setTimeout(renderNotes, 1000);
+            }
+        }
+
+/*********** EMAILING PRO V3 ***********/
+let emailingData = {};
+let currentFilteredData = {};
+
+function handleEmailingExcel(input) {
+
+  const file = input.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = e => {
+
+    const workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+    const sheet = workbook.Sheets["Données"];
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: "", range: 1 });
+
+    emailingData = {};
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}/i;
+
+    rows.forEach(row => {
+
+      const serial = row["N°Série"];
+      if (!serial) return;
+
+      const segment = (row["Segment"] || "").toString().trim();
+      const gamme = (row["Gamme"] || "").toString().trim();
+
+      const typeKey = Object.keys(row).find(k =>
+        k.toLowerCase().includes("type")
+      );
+
+      const type = typeKey ? row[typeKey].toString().trim() : "";
+
+      Object.values(row).forEach(value => {
+
+        if (!value) return;
+
+        const matches = value.toString().match(emailRegex);
+        if (!matches) return;
+
+        matches.forEach(foundEmail => {
+
+          const email = foundEmail.toLowerCase().trim();
+
+          if (!emailingData[email]) {
+            emailingData[email] = [];
+          }
+
+          emailingData[email].push({
+            serial,
+            segment,
+            gamme,
+            type
+          });
+
+        });
+
+      });
+
+    });
+
+    document.getElementById("statTotalEmails").innerText =
+      Object.keys(emailingData).length;
+
+    renderEmailingList(emailingData);
+    populateVersionFilter();
+// 🔒 Sauvegarde si verrou actif
+if (appData.locks.emailing) {
+  appData.emailingData = emailingData;
+  saveAppData();
+}
+
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+
+function applyAllEmailingFilters() {
+
+  const segment = document.getElementById("filterSegmentEmailing").value;
+  const gamme = document.getElementById("filterGammeEmailing")
+    .value
+    .toUpperCase();
+
+  const select = document.getElementById("filterVersionEmailing");
+const versions = [...select.options]
+  .filter(o => o.selected)
+  .map(o => o.value);
+
+
+  const excludeWords = document.getElementById("excludeWords").value
+    .toLowerCase()
+    .split(",")
+    .map(w => w.trim())
+    .filter(Boolean);
+
+  const filtered = {};
+
+  Object.entries(emailingData).forEach(([email, machines]) => {
+
+    // Exclusion email
+    if (excludeWords.some(word => email.includes(word))) return;
+
+    const validMachines = machines.filter(m => {
+
+      if (segment && m.segment !== segment) return false;
+
+      if (gamme && m.gamme?.toUpperCase() !== gamme) return false;
+
+      if (versions.length) {
+
+        const machineVersions = (m.type || "")
+          .toUpperCase()
+          .match(/[A-Z0-9]+/g) || [];
+
+        const match = machineVersions.some(v => versions.includes(v));
+
+        if (!match) return false;
+      }
+
+      return true;
+    });
+
+    if (validMachines.length) {
+      filtered[email] = validMachines;
+    }
+
+  });
+
+  document.getElementById("statFilteredEmails").innerText =
+    Object.keys(filtered).length;
+
+  renderEmailingList(filtered);
+}
+
+
+function renderEmailingList(data) {
+
+  const container = document.getElementById("emailingList");
+  container.innerHTML = "";
+
+  if (!Object.keys(data).length) {
+    container.innerHTML =
+      "<span class='italic text-slate-400'>Aucun email détecté</span>";
+    return;
+  }
+
+  Object.entries(data).forEach(([email, machines]) => {
+
+    const serials = machines.map(m => m.serial).join(", ");
+
+    container.innerHTML += `
+      <div class="border-b py-2">
+        <b>${email}</b><br>
+        <span class="text-slate-500 text-xs">
+          ${serials}
+        </span>
+      </div>
+    `;
+  });
+}
+
+
+function removeDuplicatesNow() {
+
+  const uniqueData = {};
+
+  Object.entries(emailingData).forEach(([email, serialSet]) => {
+    uniqueData[email] = Array.from(serialSet);
+  });
+
+  document.getElementById("statFilteredEmails").innerText =
+    Object.keys(uniqueData).length;
+
+  renderEmailingList(uniqueData);
+}
+
+
+let flyerImage = "";
+let flyerLogo = "";
+let cornerImage = "";
+
+function loadFlyerImage(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => flyerImage = reader.result;
+  reader.readAsDataURL(file);
+}
+
+function loadFlyerLogo(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => flyerLogo = reader.result;
+  reader.readAsDataURL(file);
+}
+function loadCornerImage(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => cornerImage = reader.result;
+  reader.readAsDataURL(file);
+}
+
+
+
+/* ================= CRM PROSPECT ================= */
+
+let crmData = [];
+let crmFiltered = [];
+let crmIndex = 0;
+
+function applyCRMFilter() {
+
+  const segment = document.getElementById("filterSegment").value;
+  const gamme = document.getElementById("filterGamme").value;
+  const taille = document.getElementById("filterTaille").value;
+  const annee = document.getElementById("filterAnnee").value;
+
+  crmFiltered = crmData.filter(item => {
+
+    if (segment && item.segment !== segment) return false;
+    if (gamme && item.gamme !== gamme) return false;
+    if (taille && item.taille.toString() !== taille) return false;
+    if (annee && item.annee.toString() !== annee) return false;
+
+    return true;
+  });
+
+  if (!crmFiltered.length) {
+    alert("Aucun résultat");
+    return;
+  }
+
+  crmIndex = 0;
+  showCRMCard();
+}
+
+function renderSavedProspects() {
+
+  const tbody = document.getElementById("savedProspectsTable");
+  if (!tbody) return;
+
+  tbody.innerHTML = "";
+
+  appData.prospects.forEach((p, index) => {
+
+    const tr = document.createElement("tr");
+    tr.className = "border-b";
+
+    tr.innerHTML = `
+      <td class="py-2">${p.serial}</td>
+      <td>${p.segment || ""}</td>
+      <td>${p.gamme || ""}</td>
+      <td><input value="${p.contact || ""}" 
+          class="input-field text-xs"
+          onchange="updateSavedProspect(${index}, 'contact', this.value)"></td>
+      <td><input value="${p.phone || ""}" 
+          class="input-field text-xs"
+          onchange="updateSavedProspect(${index}, 'phone', this.value)"></td>
+      <td><input value="${p.email || ""}" 
+          class="input-field text-xs"
+          onchange="updateSavedProspect(${index}, 'email', this.value)"></td>
+      <td>
+        <button onclick="deleteSavedProspect(${index})"
+          class="text-red-500 text-xs hover:underline">
+          Supprimer
+        </button>
+      </td>
+    `;
+
+    tbody.appendChild(tr);
+  });
+}
+function updateSavedProspect(index, field, value) {
+
+  appData.prospects[index][field] = value;
+  saveAppData();
+}
+
+function deleteSavedProspect(index) {
+
+  if (!confirm("Supprimer ce prospect ?")) return;
+
+  appData.prospects.splice(index, 1);
+  saveAppData();
+  renderSavedProspects();
+}
+
+function showCRMCard() {
+  if (!crmFiltered.length) {
+    alert("Aucun résultat");
+    return;
+  }
+
+  const item = crmFiltered[crmIndex];
+
+  document.getElementById("crmCard").classList.remove("hidden");
+
+  document.getElementById("crmSerial").innerText = item.serial;
+  document.getElementById("crmType").innerText = item.gamme;
+  document.getElementById("crmSize").innerText = item.taille;
+  document.getElementById("crmYear").innerText = item.annee;
+
+  document.getElementById("crmName").value = item.contact;
+  document.getElementById("crmPhone").value = item.phone;
+  document.getElementById("crmEmail").value = item.email;
+  document.getElementById("crmComment").value = item.comment || "";
+}
+
+function nextCRM() {
+  if (crmIndex < crmFiltered.length - 1) {
+    crmIndex++;
+    showCRMCard();
+  } else {
+    alert("Fin de la liste");
+  }
+}
+let goldChart = null;
+
+function renderGoldROIChart() {
+
+  const ctx = document.getElementById("dashboardROIChart");
+  if (!ctx) return;
+
+  const data = ROI_DATABASE["080"];
+  if (!data) return;
+
+  const investissement = data.prix;
+  const gainAnnuel = data.ecoEuro;
+
+  let cumul = [];
+  let total = -investissement;
+
+  for (let i = 0; i < 15; i++) {
+    total += gainAnnuel;
+    cumul.push(total);
+  }
+
+  if (goldChart) goldChart.destroy();
+
+  goldChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: cumul.map((_, i) => "Année " + (i + 1)),
+      datasets: [
+        {
+          label: "Gain cumulé (€)",
+          data: cumul,
+          borderColor: "#4f46e5",
+          tension: 0.3
+        },
+        {
+          label: "Seuil rentabilité",
+          data: Array(cumul.length).fill(0),
+          borderColor: "#22c55e",
+          borderDash: [5,5]
+        }
+      ]
+    },
+    options: {
+      plugins: {
+        legend: { display: true }
+      }
+    }
+  });
+}
+renderGoldROIChart();
+function saveCRMData() {
+
+  const item = crmFiltered[crmIndex];
+
+  item.contact = document.getElementById("crmName").value;
+  item.phone = document.getElementById("crmPhone").value;
+  item.email = document.getElementById("crmEmail").value;
+  item.comment = document.getElementById("crmComment").value;
+
+  const exists = appData.prospects.find(p => p.serial === item.serial);
+
+  if (!exists) {
+    appData.prospects.push(item);
+  } else {
+    Object.assign(exists, item);
+  }
+
+  saveAppData();
+  alert("Sauvegardé");
+}
+
+function loadProspectExcel(input) {
+
+  const file = input.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = e => {
+
+    const workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+    const sheet = workbook.Sheets["Données"];
+
+    const rows = XLSX.utils.sheet_to_json(sheet, {
+      defval: "",
+      range: 1
+    });
+
+    crmData = rows.map(row => {
+
+      let year = "";
+      if (row["Date livraison"]) {
+        const d = new Date(row["Date livraison"]);
+        if (!isNaN(d)) year = d.getFullYear();
+// 🔒 Sauvegarde si verrou actif
+
+      }
+
+      return {
+        serial: row["N°Série"],
+        segment: row["Segment"],
+        gamme: row["Gamme"],
+        taille: row["Tailles"],
+        type: row["Type"],
+        annee: year,
+        contact: "",
+        phone: "",
+        email: "",
+        comment: ""
+      };
+
+    }).filter(item => item.serial);
+
+    fillFilterOptions();
+
+    alert(crmData.length + " centrales importées");
+// 🔒 Sauvegarde si verrou actif
+if (appData.locks.prospects) {
+  appData.crmData = crmData;
+  saveAppData();
+}
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+function fillFilterOptions() {
+
+  const segments = [...new Set(crmData.map(i => i.segment))];
+  const gammes = [...new Set(crmData.map(i => i.gamme))];
+
+  const segSelect = document.getElementById("filterSegment");
+  const gamSelect = document.getElementById("filterGamme");
+
+  segSelect.innerHTML = '<option value="">Tous segments</option>';
+  gamSelect.innerHTML = '<option value="">Toutes gammes</option>';
+
+  segments.forEach(s => {
+    segSelect.innerHTML += `<option value="${s}">${s}</option>`;
+  });
+
+  gammes.forEach(g => {
+    gamSelect.innerHTML += `<option value="${g}">${g}</option>`;
+  });
+}
+
+// =====================
+// ADMIN SYSTEM
+// =====================
+
+async function createUserAccount() {
+
+  if (currentUser !== "idriss") {
+    alert("Accès réservé à l'admin");
+    return;
+  }
+
+  const username = document.getElementById("newUserName").value.trim();
+  const password = document.getElementById("newUserPass").value.trim();
+
+  if (!username || !password) {
+    alert("Champs obligatoires");
+    return;
+  }
+
+  let users = safeParse("swegon_users");
+
+  if (users[username]) {
+    alert("Utilisateur déjà existant");
+    return;
+  }
+
+  const hashedPassword = await hashPassword(password); // 🔥 FIX
+
+  users[username] = {
+    password: hashedPassword
+  };
+
+  localStorage.setItem("swegon_users", JSON.stringify(users));
+
+  document.getElementById("newUserName").value = "";
+  document.getElementById("newUserPass").value = "";
+
+  renderUsersList();
+
+  alert("Compte créé !");
+}
+
+
+function renderUsersList() {
+
+  const container = document.getElementById("usersList");
+  if (!container) return;
+
+  const users = safeParse("swegon_users");
+if (!users) {
+  alert("Aucun utilisateur enregistré");
+  return;
+}
+
+  container.innerHTML = "";
+
+  Object.keys(users).forEach(user => {
+
+    const div = document.createElement("div");
+    div.className = "flex justify-between items-center border-b py-2 text-sm";
+
+    div.innerHTML = `
+      <span>${user}</span>
+      <button onclick="deleteUser('${user}')"
+        class="text-red-500 text-xs hover:underline">
+        Supprimer
+      </button>
+    `;
+
+    container.appendChild(div);
+  });
+}
+
+
+function deleteUser(username) {
+
+  if (!confirm("Supprimer ce compte ?")) return;
+
+  let users = safeParse("swegon_users");
+
+  delete users[username];
+
+  localStorage.setItem("swegon_users", JSON.stringify(users));
+
+  renderUsersList();
+}
+
+function populateVersionFilter() {
+
+const segment = document.getElementById("filterSegmentEmailing").value || "";
+  const select = document.getElementById("filterVersionEmailing");
+
+  select.innerHTML = "";
+
+  const versionsSet = new Set();
+
+  Object.values(emailingData).forEach(machines => {
+    machines.forEach(m => {
+
+      if (!segment || m.segment === segment) {
+
+        if (m.type) {
+
+  const parts = (m.type.toUpperCase().match(/[A-Z0-9]+/g) || []);
+
+  parts.forEach(p => {
+    if (p) versionsSet.add(p);
+  });
+}
+
+      }
+
+    });
+  });
+
+  [...versionsSet].sort().forEach(v => {
+    const option = document.createElement("option");
+    option.value = v;
+    option.textContent = v;
+    select.appendChild(option);
+  });
+}
+let layerCount = 0;
+
+function addTextBlock() {
+
+  layerCount++;
+
+  const block = document.createElement("div");
+  block.className = "flyer-block";
+  block.innerText = "Double-clique pour éditer";
+  block.contentEditable = true;
+
+  block.style.cssText = `
+    position:absolute;
+    top:100px;
+    left:100px;
+    width:300px;
+    min-height:80px;
+    padding:15px;
+    background:rgba(255,255,255,0.6);
+    backdrop-filter:blur(8px);
+    font-weight:bold;
+    cursor:move;
+    resize:both;
+    overflow:auto;
+    z-index:${layerCount};
+    transform:rotate(0deg);
+  `;
+
+  enableDrag(block);
+  enableRotate(block);
+
+  document.getElementById("flyerLayers").appendChild(block);
+}
+
+function enableDrag(el) {
+
+  let isDragging = false;
+  let offsetX, offsetY;
+
+  el.addEventListener("mousedown", (e) => {
+    if (e.target !== el) return;
+
+    isDragging = true;
+    offsetX = e.clientX - el.offsetLeft;
+    offsetY = e.clientY - el.offsetTop;
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (!isDragging) return;
+    el.style.left = (e.clientX - offsetX) + "px";
+    el.style.top = (e.clientY - offsetY) + "px";
+  });
+
+  document.addEventListener("mouseup", () => {
+    isDragging = false;
+  });
+
+  el.addEventListener("click", () => {
+    layerCount++;
+    el.style.zIndex = layerCount;
+  });
+}
+
+function enableRotate(el) {
+
+  el.addEventListener("wheel", (e) => {
+    e.preventDefault();
+
+    let current = el.style.transform.match(/rotate\(([-0-9.]+)deg\)/);
+    let angle = current ? parseFloat(current[1]) : 0;
+
+    angle += e.deltaY > 0 ? 2 : -2;
+
+    el.style.transform = `rotate(${angle}deg)`;
+  });
+}
+
+function toggleGrid(){
+  document.getElementById("flyerGrid")
+    .classList.toggle("hidden");
+}
+
+function exportFlyerPDF() {
+
+  const element = document.getElementById("flyerCanvas");
+
+  html2canvas(element, { scale: 2 }).then(canvas => {
+
+    const imgData = canvas.toDataURL("image/png");
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF("p", "mm", "a4");
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const imgHeight = (canvas.height * pageWidth) / canvas.width;
+
+    pdf.addImage(imgData, "PNG", 0, 0, pageWidth, imgHeight);
+
+    pdf.save("flyer.pdf");
+  });
+}
+function updateFlyer() {
+
+  const layers = document.getElementById("flyerLayers");
+
+  const title = document.getElementById("flyerTitle").value;
+  const text = document.getElementById("flyerText").value.replace(/\n/g, "<br>");
+  const price = document.getElementById("flyerPrice").value;
+  const badge = document.getElementById("flyerBadge").value;
+  const color = document.getElementById("flyerColor").value;
+
+  layers.innerHTML = "";
+
+  // ========================
+  // BACKGROUND IMAGE
+  // ========================
+  const bg = document.getElementById("flyerBg");
+
+  if (flyerImage) {
+    bg.src = flyerImage;
+  }
+
+  bg.style.filter = "brightness(70%)";
+  bg.style.opacity = 1;
+
+  // ========================
+  // OVERLAY (SWEGON STYLE)
+  // ========================
+  const overlayLayer = document.getElementById("bgOverlayLayer");
+  overlayLayer.style.background = "linear-gradient(90deg, rgba(0,0,0,0.75) 30%, rgba(0,0,0,0.2) 100%)";
+
+  // ========================
+  // LOGO
+  // ========================
+  if (flyerLogo) {
+    const logo = document.createElement("img");
+    logo.src = flyerLogo;
+
+    logo.style.cssText = `
+      position:absolute;
+      top:40px;
+      left:40px;
+      width:160px;
+      z-index:30;
+    `;
+
+    layers.appendChild(logo);
+  }
+
+  // ========================
+  // BADGE
+  // ========================
+  if (badge) {
+    const badgeDiv = document.createElement("div");
+
+    badgeDiv.innerText = badge;
+
+    badgeDiv.style.cssText = `
+      position:absolute;
+      top:40px;
+      right:40px;
+      background:white;
+      color:${color};
+      padding:8px 18px;
+      border-radius:50px;
+      font-weight:600;
+      font-size:12px;
+      z-index:30;
+      box-shadow:0 4px 10px rgba(0,0,0,0.15);
+    `;
+
+    layers.appendChild(badgeDiv);
+  }
+
+  // ========================
+  // MAIN TEXT BLOCK (PLAQUETTE)
+  // ========================
+  const block = document.createElement("div");
+
+  block.style.cssText = `
+    position:absolute;
+    top:150px;
+    left:80px;
+    width:520px;
+    padding:50px;
+    border-radius:20px;
+    background:white;
+    color:#0f172a;
+    box-shadow:0 30px 60px rgba(0,0,0,0.25);
+    z-index:20;
+  `;
+
+  block.innerHTML = `
+    <div style="
+      font-size:42px;
+      font-weight:800;
+      margin-bottom:25px;
+      line-height:1.1;
+      color:#0f172a;
+    ">
+      ${title}
+    </div>
+
+    <div style="
+      width:60px;
+      height:4px;
+      background:${color};
+      margin-bottom:25px;
+    "></div>
+
+    <div style="
+      font-size:16px;
+      line-height:1.6;
+      color:#334155;
+    ">
+      ${text}
+    </div>
+
+    ${price ? `
+      <div style="
+        margin-top:30px;
+        font-size:22px;
+        font-weight:700;
+        color:${color};
+      ">
+        ${price}
+      </div>
+    ` : ""}
+  `;
+
+  layers.appendChild(block);
+
+  // ========================
+  // IMAGE PRODUIT (DROITE)
+  // ========================
+  if (cornerImage) {
+    const img = document.createElement("img");
+
+    img.src = cornerImage;
+
+    img.style.cssText = `
+      position:absolute;
+      bottom:60px;
+      right:60px;
+      width:320px;
+      border-radius:16px;
+      box-shadow:0 20px 40px rgba(0,0,0,0.3);
+      z-index:10;
+    `;
+
+    layers.appendChild(img);
+  }
+
+  // ========================
+  // SAVE
+  // ========================
+  appData.flyers[0] = {
+    title,
+    text: document.getElementById("flyerText").value,
+    badge,
+    primaryColor: color,
+    image: flyerImage || "",
+    logo: flyerLogo || "",
+    corner: cornerImage || ""
+  };
+
+  saveAppData();
+}
+
+function hexToRGBA(hex, opacity) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${opacity})`;
+}
+function getCheckedValues(className) {
+  return [...document.querySelectorAll("." + className + ":checked")]
+    .map(el => el.value);
+}
+function renderStatsTable() {
+
+  const tbody = document.getElementById("statsTable");
+  if (!tbody) return;
+
+  tbody.innerHTML = "";
+
+  appData.stats.forEach((stat, index) => {
+
+    const tr = document.createElement("tr");
+    tr.className = "border-b";
+
+    tr.innerHTML = `
+      <td class="py-2">${stat.date}</td>
+      <td class="text-right">${stat.amount.toLocaleString("fr-FR")} €</td>
+      <td class="text-right">
+        <button onclick="deleteStat(${index})"
+          class="text-red-500 text-xs hover:underline">
+          Supprimer
+        </button>
+      </td>
+    `;
+
+    tbody.appendChild(tr);
+  });
+}
+function saveWiseData() {
+
+  if (!appData.wise) {
+    appData.wise = [];
+  }
+
+  const editId = document.getElementById("wiseEditId").value;
+
+  const entry = {
+    id: editId ? parseInt(editId) : Date.now(),
+    site: document.getElementById("wiseSiteName").value,
+    prospect: document.getElementById("wiseProspectName").value,
+    address: document.getElementById("wiseAddress").value,
+    email: document.getElementById("wiseEmail").value,
+    phone: document.getElementById("wisePhone").value,
+    surfaceHeat: document.getElementById("wiseSurfaceHeat").value,
+    surfaceCool: document.getElementById("wiseSurfaceCool").value,
+    buildingType: getCheckedValues("wise-building"),
+    heatSystems: getCheckedValues("wise-heat"),
+    coolSystems: getCheckedValues("wise-cool"),
+    enr: getCheckedValues("wise-enr"),
+    beforeYear: document.getElementById("wiseBeforeYear").value,
+    beforeHeat: document.getElementById("wiseBeforeHeat").value,
+    beforeCool: document.getElementById("wiseBeforeCool").value,
+    beforeOther: document.getElementById("wiseBeforeOther").value,
+    afterYear: document.getElementById("wiseAfterYear").value,
+    afterHeat: document.getElementById("wiseAfterHeat").value,
+    afterCool: document.getElementById("wiseAfterCool").value,
+    afterOther: document.getElementById("wiseAfterOther").value
+  };
+
+  if (editId) {
+    appData.wise = appData.wise.map(w => w.id == editId ? entry : w);
+  } else {
+    appData.wise.unshift(entry);
+  }
+
+  saveAppData();
+  renderWiseList();
+  clearWiseForm();
+
+  alert("Fiche enregistrée avec succès");
+}
+
+function destroyChart(instance) {
+  if (instance && instance.destroy) {
+    instance.destroy();
+  }
+}
+
+function editWise(id) {
+
+  const data = appData.wise.find(w => w.id === id);
+  if (!data) return;
+
+  document.getElementById("wiseEditId").value = data.id;
+
+  wiseSiteName.value = data.site;
+  wiseProspectName.value = data.prospect;
+  wiseAddress.value = data.address;
+  wiseEmail.value = data.email;
+  wisePhone.value = data.phone;
+  wiseSurfaceHeat.value = data.surfaceHeat;
+  wiseSurfaceCool.value = data.surfaceCool;
+  wiseBeforeYear.value = data.beforeYear;
+  wiseBeforeHeat.value = data.beforeHeat;
+  wiseBeforeCool.value = data.beforeCool;
+  wiseBeforeOther.value = data.beforeOther;
+  wiseAfterYear.value = data.afterYear;
+  wiseAfterHeat.value = data.afterHeat;
+  wiseAfterCool.value = data.afterCool;
+  wiseAfterOther.value = data.afterOther;
+
+  document.querySelectorAll("input[type=checkbox]").forEach(cb => cb.checked = false);
+
+  data.buildingType.forEach(v =>
+    document.querySelector(`.wise-building[value="${v}"]`).checked = true
+  );
+  data.heatSystems.forEach(v =>
+    document.querySelector(`.wise-heat[value="${v}"]`).checked = true
+  );
+  data.coolSystems.forEach(v =>
+    document.querySelector(`.wise-cool[value="${v}"]`).checked = true
+  );
+  data.enr.forEach(v =>
+    document.querySelector(`.wise-enr[value="${v}"]`).checked = true
+  );
+
+  switchTab("wise");
+}
+
+function deleteWise(id) {
+  if (!confirm("Supprimer cette fiche ?")) return;
+  appData.wise = appData.wise.filter(w => w.id !== id);
+  saveAppData();
+  renderWiseList();
+}
+
+function clearWiseForm() {
+  document.getElementById("wiseEditId").value = "";
+  document.querySelectorAll("#view-wise input").forEach(i => {
+    if (i.type === "checkbox") i.checked = false;
+    else i.value = "";
+  });
+}
+function renderWiseList() {
+
+  const container = document.getElementById("wiseList");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  if (!appData.wise || !appData.wise.length) {
+    container.innerHTML =
+      "<p class='text-xs text-slate-400 italic'>Aucune fiche enregistrée</p>";
+    return;
+  }
+
+  appData.wise.forEach(item => {
+
+    const div = document.createElement("div");
+    div.className =
+      "border border-slate-200 rounded-lg p-4 mb-3 bg-slate-50";
+
+    div.innerHTML = `
+      <div class="flex justify-between items-start">
+        <div>
+          <p class="text-sm font-semibold text-slate-800">${item.site}</p>
+          <p class="text-xs text-slate-500">${item.prospect}</p>
+          <p class="text-xs text-slate-400">${item.email || ""}</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="editWise(${item.id})"
+            class="text-xs text-indigo-600 hover:underline">
+            Modifier
+          </button>
+          <button onclick="deleteWise(${item.id})"
+            class="text-xs text-red-500 hover:underline">
+            Supprimer
+          </button>
+        </div>
+      </div>
+    `;
+
+    container.appendChild(div);
+
+  });
+}
+let roiChartInstance = null;
+let dashboardChart = null;
+
+function renderDashboard() {
+const avgROI = roiData.length
+  ? (roiData.reduce((sum, r) => sum + (r.roi || 0), 0) / roiData.length).toFixed(1)
+  : null;
+
+// 🔥 ROI GOLD 080
+const gold80 = ROI_DATABASE["080"];
+
+document.getElementById("dashROI").innerHTML = `
+  <div class="text-lg font-bold text-indigo-600">
+    ${avgROI ? avgROI + " ans" : "—"}
+  </div>
+
+  <div class="text-xs text-slate-500 mt-2">
+    GOLD 080 : <b>${gold80.roi} ans</b>
+  </div>
+`;
+
+document.getElementById("dashEmailing").innerText =
+  Object.keys(emailingData || {}).length;
+
+document.getElementById("dashWise").innerText =
+  appData.wise.length;
+
+  document.getElementById("dashProspects").innerText =
+    appData.prospects.length;
+
+  document.getElementById("dashMails").innerText =
+    appData.archives.length;
+
+  document.getElementById("dashDocs").innerText =
+    appData.documents.length;
+
+  const totalCA = appData.stats.reduce((sum, s) => sum + s.amount, 0);
+
+  document.getElementById("dashRevenue").innerText =
+    totalCA.toLocaleString("fr-FR") + " €";
+
+  const ctx = document.getElementById("dashboardChart");
+
+  destroyChart(dashboardChart);
+
+  dashboardChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: appData.stats.map(s => s.date),
+      datasets: [{
+        data: appData.stats.map(s => s.amount),
+        borderColor: "#4f46e5",
+        tension: 0.3
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } }
+    }
+  });
+
+  const docList = document.getElementById("dashDocsList");
+  docList.innerHTML = "";
+
+  appData.documents.slice(0, 5).forEach(doc => {
+    docList.innerHTML += `<div>${doc.name}</div>`;
+  });
+
+  const mailList = document.getElementById("dashMailsList");
+  mailList.innerHTML = "";
+
+  appData.archives.slice(0, 5).forEach(mail => {
+    mailList.innerHTML += `
+      <div>
+        <b>${mail.client}</b><br>
+        <span class="text-slate-400">${mail.type}</span>
+      </div>
+    `;
+  });
+}
+let roiData = []; // ⚠️ maintenant dynamique depuis Excel
+function loadROIExcel(input) {
+appData.roiTable = roiData;
+saveAppData();
+  const file = input.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = e => {
+
+    const workbook = XLSX.read(new Uint8Array(e.target.result), { type: "array" });
+    const sheet = workbook.Sheets["Données"] || workbook.Sheets[workbook.SheetNames[0]];
+
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: "", range: 1 });
+
+    console.log("COLONNES EXCEL :", Object.keys(rows[0]));
+
+    roiData = rows.map(r => ({
+
+taille: String(r["Taille"] || "")
+  .trim()
+  .padStart(3, "0"),
+
+prix: parseFloat((r["Prix Total (Presta+Pièces)"] || "0")
+  .toString()
+  .replace(/[^\d.]/g, "")),
+
+      consoAvant: parseFloat(r["Conso totale (kwh) - 24h24 7/7"] || 0),
+      consoApres: parseFloat(r["Conso totale (kwh) - 24h24 7/7 "] || 0),
+
+      ecoEuro: parseFloat((r["Economie facture (€)"] || "0").toString().replace(/[^\d.]/g, "")),
+
+      roi: parseFloat(r["ROI"] || 0),
+      roiAvecGarantie: parseFloat(r["ROI avec garantie"] || 0),
+
+      // 🔥 CO2
+      co2: parseFloat((r["Barème Sonde CO2"] || "0").toString().replace(/[^\d.]/g, "")),
+
+      // 🔥 PAR TYPE (⚠️ à ajuster si besoin via console.log)
+      salle: {
+        roi: parseFloat(r["ROI "] || 0)
+      },
+      ecole: {
+        roi: parseFloat(r["ROI  "] || 0)
+      },
+      bureaux: {
+        roi: parseFloat(r["ROI   "] || 0)
+      }
+
+    }));
+
+    renderROITable();
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+function getROIByType(row, type) {
+  switch (type) {
+    case "salle":
+      return parseFloat(row.roi_1);
+
+    case "ecole":
+      return parseFloat(row.roi_2);
+
+    case "bureaux":
+      return parseFloat(row.roi_3);
+
+    default:
+      return parseFloat(row.roi);
+  }
+}
+function populateROITailleSelect() {
+
+  const select = document.getElementById("roiTaille");
+  if (!select) return;
+
+  select.innerHTML = '<option value="">Choisir taille</option>';
+
+  const tailles = [...new Set(roiData.map(r => r.taille))];
+
+  tailles.sort().forEach(t => {
+    const option = document.createElement("option");
+    option.value = t;
+    option.textContent = t;
+    select.appendChild(option);
+  });
+}
+
+function normalizeKeys(obj) {
+  const newObj = {};
+
+  Object.keys(obj).forEach(key => {
+    const cleanKey = key
+      .toLowerCase()
+      .replace(/\s+/g, "")
+      .replace(/[()]/g, "");
+
+    newObj[cleanKey] = obj[key];
+  });
+
+  return newObj;
+}
+function renderROITable() {
+
+  const container = document.getElementById("roiTableContainer");
+  if (!container) return;
+
+  if (!roiData.length) {
+    container.innerHTML = "Aucune donnée";
+    return;
+  }
+
+  // 🔥 HEADERS FIXES (IMPORTANT)
+  const headers = [
+    "taille",
+    "prix",
+    "consoAvant",
+    "consoApres",
+    "ecoEuro",
+    "roi",
+    "co2"
+  ];
+
+  let html = "<table class='w-full text-xs border'>";
+
+  // HEADER
+  html += "<thead class='bg-slate-100'><tr>";
+  headers.forEach(h => {
+    html += `<th class="border px-2 py-1 text-left">${h}</th>`;
+  });
+  html += "</tr></thead>";
+
+  // BODY
+  html += "<tbody>";
+
+  roiData.forEach(row => {
+    html += "<tr>";
+
+    headers.forEach(h => {
+
+      let value = row[h];
+
+      if (value === undefined || value === null || value === "") {
+        value = "-";
+      }
+
+      if (typeof value === "number") {
+        value = value.toLocaleString("fr-FR");
+      }
+
+      html += `<td class="border px-2 py-1">${value}</td>`;
+    });
+
+    html += "</tr>";
+  });
+
+  html += "</tbody></table>";
+
+  container.innerHTML = html;
+}
+function findBestROI(taille) {
+
+  if (!roiData || !roiData.length) return null;
+
+  // 🔥 on garde format 3 chiffres (008)
+  const clean = String(taille).padStart(3, "0");
+
+  const candidates = roiData.filter(d => {
+
+    const raw =
+      d.taille ||
+      d.tailles ||
+      d.taillemm ||
+      d.dimension ||
+      "";
+
+    if (!raw) return false;
+const t = String(raw).padStart(3, "0");
+
+    return t === clean;
+  });
+
+  if (!candidates.length) {
+    console.warn("❌ Aucune correspondance pour taille:", taille);
+    return null;
+  }
+
+  return candidates.reduce((best, current) => {
+
+    const before = parseFloat(current.consoavant || 0);
+    const after = parseFloat(current.consoapres || 0);
+
+    const gain = before - after;
+
+    return gain > (best?.gain || 0)
+      ? { ...current, gain }
+      : best;
+
+  }, null);
+}
+function generateROISimulation() {
+
+  const consoAvant = parseFloat(document.getElementById("roiConsoAvant").value);
+  const gainPct = parseFloat(document.getElementById("roiGain").value) / 100;
+  const prixKwh = parseFloat(document.getElementById("roiPrixKwh").value);
+  const invest = parseFloat(document.getElementById("roiInvest").value);
+  const inflation = parseFloat(document.getElementById("roiInflation").value) / 100;
+
+  if (isNaN(consoAvant) || isNaN(gainPct) || isNaN(prixKwh) || isNaN(invest)) {
+    alert("Merci de remplir tous les champs");
+    return;
+  }
+
+  // 🔥 Gain annuel initial (IMPORTANT)
+  const gainAnnuelInitial = consoAvant * gainPct * prixKwh;
+
+  // 🔥 ROI SIMPLE demandé
+  const roiSimple = invest / gainAnnuelInitial;
+
+  let cumul = [];
+  let total = -invest; // 🔥 démarre négatif
+  let year = 0;
+
+  // 🔥 on calcule jusqu’à amortissement ou max 30 ans
+  while (year < 30) {
+
+    const gainInflate = gainAnnuelInitial * Math.pow(1 + inflation, year);
+    total += gainInflate;
+
+    cumul.push(total);
+
+    if (total >= 0) break;
+
+    year++;
+  }
+
+  const roiReel = cumul.findIndex(v => v >= 0);
+  const roiAffiche = roiReel === -1 ? "Non atteint" : roiReel + 1;
+
+  renderROIChart(cumul, invest);
+
+  document.getElementById("roiResults").innerHTML = `
+    <div class="space-y-2">
+      <p><b>Investissement :</b> ${invest.toFixed(0)} €</p>
+      <p><b>Gain annuel initial :</b> ${gainAnnuelInitial.toFixed(0)} €</p>
+
+      <p class="text-slate-600">
+        ROI simple : ${roiSimple.toFixed(1)} ans
+      </p>
+
+      <p class="text-indigo-600 font-bold text-xl">
+        ROI réel (inflation) : ${roiAffiche}
+      </p>
+    </div>
+  `;
+}
+function initROIModule() {
+
+  const select = document.getElementById("roiTaille");
+
+  select.innerHTML = '<option value="">Choisir taille</option>';
+
+  Object.keys(ROI_DATABASE).forEach(t => {
+    const option = document.createElement("option");
+    option.value = t;
+    option.textContent = t;
+    select.appendChild(option);
+  });
+}
+function autoFillROI() {
+
+  const taille = document.getElementById("roiTaille").value;
+  const data = ROI_DATABASE[taille];
+
+  if (!data) {
+    alert("Taille non trouvée");
+    return;
+  }
+
+  document.getElementById("roiConsoAvant").value = data.consoAvant;
+  document.getElementById("roiGain").value = data.gainPct;
+  document.getElementById("roiInvest").value = data.prix;
+
+  document.getElementById("roiDebit").value = data.debit + " m³/h";
+  document.getElementById("roiPuissance").value = data.puissance + " kW";
+
+  if (!document.getElementById("roiPrixKwh").value)
+    document.getElementById("roiPrixKwh").value = 0.18;
+
+  if (!document.getElementById("roiInflation").value)
+    document.getElementById("roiInflation").value = 0;
+
+  generateROISimulation();
+}
+async function exportWisePDF() {
+
+  const wiseSection = document.getElementById("view-wise");
+
+  wiseSection.style.display = "flex";
+  wiseSection.classList.remove("hidden");
+
+  const container = document.querySelector("#view-wise .bg-white");
+
+  // cacher boutons
+  const buttons = container.querySelectorAll("button");
+  buttons.forEach(btn => btn.style.display = "none");
+
+  // remplacer inputs par texte
+  const inputs = container.querySelectorAll("input[type='text'], textarea");
+  const replaced = [];
+
+  inputs.forEach(input => {
+    const div = document.createElement("div");
+    div.textContent = input.value;
+    div.style.padding = "10px";
+    div.style.border = "1px solid #d1d5db";
+    div.style.borderRadius = "6px";
+    div.style.background = "#fff";
+
+    input.style.display = "none";
+    input.parentNode.insertBefore(div, input.nextSibling);
+
+    replaced.push({ input, div });
+  });
+
+  // 🔥 AJOUT MANQUANT
+  const canvas = await html2canvas(container, { scale: 2 });
+
+  const { jsPDF } = window.jspdf;
+
+  const imgData = canvas.toDataURL("image/png");
+
+  const pdf = new jsPDF("p", "mm", "a4");
+
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const imgHeight = (canvas.height * pageWidth) / canvas.width;
+
+  pdf.addImage(imgData, "PNG", 0, 0, pageWidth, imgHeight);
+
+  pdf.save("WISE.pdf");
+
+  // restore
+  replaced.forEach(item => {
+    item.input.style.display = "";
+    item.div.remove();
+  });
+
+  buttons.forEach(btn => btn.style.display = "");
+
+  wiseSection.classList.add("hidden");
+  wiseSection.style.display = "";
+}
+</script>
+<script>
+// ==========================
+// SYSTEME CADENAS EMAILING
+// ==========================
+
+function toggleLock(module) {
+
+  if (!appData.locks) {
+    appData.locks = {
+      emailing: false,
+      prospects: false,
+      roi: false
+    };
+  }
+
+  appData.locks[module] = !appData.locks[module];
+
+  updateLockUI(module);
+  saveAppData();
+}
+
+function updateLockUI(module) {
+
+  const btn = document.getElementById("lock-" + module);
+  if (!btn) return;
+
+  if (appData.locks && appData.locks[module]) {
+    btn.innerText = "🔒";
+    btn.classList.add("locked");
+  } else {
+    btn.innerText = "🔓";
+    btn.classList.remove("locked");
+  }
+}
+function renderROIChart(cumul, invest) {
+
+  const ctx = document.getElementById("roiChart");
+
+  const taille = document.getElementById("roiTaille").value;
+  const data = ROI_DATABASE[taille];
+
+  // 🔥 point ROI
+  const breakIndex = cumul.findIndex(v => v >= 0);
+
+  const breakLine = cumul.map((_, i) =>
+    i === breakIndex ? cumul[i] : null
+  );
+
+  const breakLabel = breakIndex !== -1
+    ? `ROI atteint en ${breakIndex + 1} ans`
+    : "ROI non atteint";
+
+  const infoLabel = `Info : Débit ${data.debit} m³/h | Puissance ${data.puissance} kW`;
+
+  destroyChart(roiChartInstance);
+
+  roiChartInstance = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: cumul.map((_, i) => "Année " + (i + 1)),
+      datasets: [
+
+        {
+          label: "Gain cumulé (€)",
+          data: cumul,
+          borderColor: "#4f46e5",
+          tension: 0.3
+        },
+
+        {
+          label: "Investissement",
+          data: Array(cumul.length).fill(-invest),
+          borderColor: "#ef4444",
+          borderDash: [5, 5]
+        },
+
+        {
+          label: "Projet amorti (seuil rentabilité)",
+          data: Array(cumul.length).fill(0),
+          borderColor: "#22c55e",
+          borderWidth: 2,
+          borderDash: [6, 6],
+          pointRadius: 0
+        },
+
+        {
+          label: breakLabel,
+          data: breakLine,
+          borderColor: "#22c55e",
+          backgroundColor: "#22c55e",
+          pointRadius: 6,
+          borderWidth: 2,
+          spanGaps: false
+        }
+
+      ]
+    },
+
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          display: true,
+          labels: {
+            generateLabels(chart) {
+
+              const labels = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+
+              // 🔥 ajout info simple (sans ligne graphique)
+              labels.push({
+                text: infoLabel,
+                fillStyle: "transparent",
+                strokeStyle: "transparent",
+                lineWidth: 0
+              });
+
+              return labels;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+async function hashPassword(password) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password + "_swegon_secure");
+
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function checkPassword(input, stored) {
+  const hashed = await hashPassword(input);
+  return hashed === stored;
+}async function exportROIPDF() {
+
+  const chart = document.getElementById("roiChart");
+
+  if (!chart) {
+    alert("Graphique introuvable");
+    return;
+  }
+
+  // 🔥 on récupère l'image du canvas DIRECTEMENT
+  const chartImage = chart.toDataURL("image/png");
+
+  // 🔥 container PDF
+  const container = document.createElement("div");
+
+  container.style.width = "800px";
+  container.style.padding = "40px";
+  container.style.background = "#ffffff";
+  container.style.fontFamily = "Arial";
+
+  // LOGO
+  const logo = document.createElement("img");
+  logo.src = "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Swegon_logo.svg/512px-Swegon_logo.svg.png";
+  logo.style.width = "200px";
+  logo.style.marginBottom = "20px";
+
+  // TITRE
+  const title = document.createElement("h2");
+  title.innerText = "Simulation ROI énergétique";
+  title.style.marginBottom = "20px";
+
+  // 🔥 IMAGE DU GRAPH (au lieu de clone)
+  const img = document.createElement("img");
+  img.src = chartImage;
+  img.style.width = "100%";
+
+  container.appendChild(logo);
+  container.appendChild(title);
+  container.appendChild(img);
+
+  document.body.appendChild(container);
+
+  const canvas = await html2canvas(container, {
+    scale: 2,
+    backgroundColor: "#ffffff"
+  });
+
+  document.body.removeChild(container);
+
+  const imgData = canvas.toDataURL("image/png");
+
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF("p", "mm", "a4");
+
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const imgHeight = (canvas.height * pageWidth) / canvas.width;
+
+  pdf.addImage(imgData, "PNG", 0, 10, pageWidth, imgHeight);
+
+  pdf.save("ROI_Swegon.pdf");
+}
+</script>
+</body>
+</html>
